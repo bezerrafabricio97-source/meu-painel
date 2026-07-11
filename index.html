@@ -803,11 +803,13 @@ function setActiveTab(tab){
   render();
 }
 
+const LS_PREFIX = 'meu-painel:';
+
 async function loadAll(){
   for (const tab of Object.keys(STORAGE_KEY)){
     try{
-      const res = await window.storage.get(STORAGE_KEY[tab], false);
-      state[tab] = res ? JSON.parse(res.value) : [];
+      const raw = localStorage.getItem(LS_PREFIX + STORAGE_KEY[tab]);
+      state[tab] = raw ? JSON.parse(raw) : [];
     }catch(e){
       state[tab] = [];
     }
@@ -816,7 +818,7 @@ async function loadAll(){
 
 async function persist(tab){
   try{
-    await window.storage.set(STORAGE_KEY[tab], JSON.stringify(state[tab]), false);
+    localStorage.setItem(LS_PREFIX + STORAGE_KEY[tab], JSON.stringify(state[tab]));
   }catch(e){
     console.error('Falha ao salvar', tab, e);
   }
