@@ -768,9 +768,21 @@ const DIARIA_META_MENSAL = 8;
 const BANCOS = ['Neon','Nu','C6'];
 const VENDA_LOJAS = ['T11Sports', 'Amazon', 'Shopee'];
 const VENDA_VALOR_PADRAO = { 'T11Sports': 159 };
-const GASTO_CATEGORIAS = ['Pedidos Amazon','Pedidos Shopee','Pedidos T11','Taxa de importação','Frete','Alimentação','Produtos de limpeza','Wi-fi','Internet móvel','Luz','Transporte'];
-const CAIXINHA_SUGESTOES = ['Custo Fixo','Mercado','Transporte','Consultoria','Upgrade','Esportes','Cabelo','Moto','Restaurante','T11Sports','Amazon','Outra'];
+const GASTO_CATEGORIAS = ['Pedidos Amazon','Pedidos Shopee','Pedidos T11','Taxa de importação','Frete','Alimentação','iFood','Produtos de limpeza','Wi-fi','Internet móvel','Luz','Transporte'];
+const CAIXINHA_SUGESTOES = ['Custo Fixo','Alimentação','iFood','Mercado','Transporte','Consultoria','Upgrade','Esportes','Cabelo','Moto','Restaurante','T11Sports','Amazon','Outra'];
 const CAIXINHA_META_PADRAO = { 'Custo Fixo': 1700, 'T11Sports': 1200, 'Moto': 10000, 'Transporte': 100 };
+const CAIXINHA_TEMPLATES = {
+  t11: [
+    { nome:'T11Sports', pct:50 }, { nome:'Transporte', pct:5 }, { nome:'iFood', pct:6 },
+    { nome:'Esportes', pct:6 }, { nome:'Consultoria', pct:8 }, { nome:'Upgrade', pct:8 },
+    { nome:'Custo Fixo', pct:8 }, { nome:'Alimentação', pct:9 }
+  ],
+  padrao: [
+    { nome:'Custo Fixo', pct:18 }, { nome:'Alimentação', pct:27 }, { nome:'iFood', pct:6 },
+    { nome:'Transporte', pct:13 }, { nome:'Cabelo', pct:4 }, { nome:'Upgrade', pct:9 },
+    { nome:'Consultoria', pct:9 }, { nome:'Moto', pct:14 }
+  ]
+};
 const DIAS_SEMANA = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
 const SUBTAB_LABELS = { tarefas:'Tarefas', projetos:'Projetos', cronograma:'Cronograma', estudos:'Estudos' };
 
@@ -1732,6 +1744,7 @@ function caixinhaMovForm(c){
       </div>
     </div>
     <div class="field"><label for="f-movvalor">Valor (R$)</label><input id="f-movvalor" type="number" min="0" step="0.01" placeholder="0,00"></div>
+    <div class="field"><label for="f-meta">Meta desta caixinha (opcional)</label><input id="f-meta" type="number" min="0" step="0.01" value="${c.meta || ''}" placeholder="Deixe vazio para pote livre"></div>
     ${sheetActions('caixinha-mov')}`;
 }
 
@@ -1752,12 +1765,12 @@ function financasForm(initialType){
 
 function splitUiHtml(){
   return `<div class="field">
-      <button type="button" id="toggleSplit" class="chip" style="width:100%;text-align:center;">+ Dividir em caixinhas</button>
+      <button type="button" id="toggleSplit" class="chip" style="width:100%;text-align:center;">− Ocultar divisão em caixinhas</button>
     </div>
-    <div id="splitContainer" style="display:none;">
+    <div id="splitContainer">
       <div id="splitRows"></div>
       <button type="button" id="addSplitRow" class="chip" style="margin-bottom:10px;">+ Adicionar caixinha</button>
-      <div id="splitTotal" class="row-sub" style="margin:-4px 0 12px;"></div>
+      <div id="splitTotal" class="row-sub" style="margin:-4px 0 12px;font-size:13px;"></div>
     </div>`;
 }
 
@@ -1769,28 +1782,55 @@ function setupSplitUI(){
   const addBtn = document.getElementById('addSplitRow');
   const totalEl = document.getElementById('splitTotal');
 
-  function updateTotal(){
-    let total = 0;
-    rowsEl.querySelectorAll('.split-pct').forEach(inp=>{ total += (parseFloat(inp.value)||0); });
-    totalEl.textContent = 'Total dividido: ' + total + '%';
-    totalEl.style.color = total > 100 ? 'var(--danger)' : 'var(--text-dim)';
+  function currentValor(){
+    const el = document.getElementById('f-valor');
+    return el ? (parseFloat(el.value) || 0) : 0;
   }
 
-  function addSplitRow(){
+  function updateTotal(){
+    const totalValor = currentValor();
+    let totalPct = 0;
+    rowsEl.querySelectorAll('.field').forEach(row=>{
+      const pct = parseFloat(row.querySelector('.split-pct').value) || 0;
+      totalPct += pct;
+      const valorSpan = row.querySelector('.split-valor');
+      if (valorSpan) valorSpan.textContent = formatMoney(totalValor * pct / 100);
+    });
+    const fechou = Math.abs(totalPct - 100) < 0.05;
+    if (totalPct === 0){
+      totalEl.innerHTML = `<span style="color:var(--text-dim);">Defina a % de cada caixinha</span>`;
+    } else if (fechou){
+      totalEl.innerHTML = `<span style="color:var(--financas);">✓ Fechou 100% — ${formatMoney(totalValor)}</span>`;
+    } else if (totalPct > 100){
+      totalEl.innerHTML = `<span style="color:var(--danger);">Passou de 100% (${totalPct.toFixed(0)}%) — ajuste as %</span>`;
+    } else {
+      totalEl.innerHTML = `<span style="color:var(--warning);">${totalPct.toFixed(0)}% distribuído — faltam ${(100-totalPct).toFixed(0)}%</span>`;
+    }
+  }
+
+  function addSplitRow(nomeInicial, pctInicial){
     const row = document.createElement('div');
     row.className = 'field';
     row.style.display = 'flex';
-    row.style.gap = '8px';
+    row.style.gap = '6px';
     row.style.alignItems = 'center';
     row.innerHTML = `
-      <select class="split-caixinha" style="flex:2;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:11px;color:var(--text);font-size:14px;">
-        ${CAIXINHA_SUGESTOES.filter(n=>n!=='Outra').map(n=>`<option value="${n}">${n}</option>`).join('')}
+      <select class="split-caixinha" style="flex:2;min-width:0;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:11px 6px;color:var(--text);font-size:13px;">
+        ${CAIXINHA_SUGESTOES.filter(n=>n!=='Outra').map(n=>`<option value="${n}" ${n===nomeInicial?'selected':''}>${n}</option>`).join('')}
       </select>
-      <input class="split-pct" type="number" min="0" max="100" placeholder="%" style="flex:1;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:11px;color:var(--text);font-size:14px;">
+      <input class="split-pct" type="number" min="0" max="100" placeholder="%" value="${pctInicial!=null?pctInicial:''}" style="flex:0 0 56px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:11px 4px;color:var(--text);font-size:13px;text-align:center;">
+      <span class="split-valor" style="flex:0 0 76px;text-align:right;font-family:var(--font-mono);font-size:12.5px;color:var(--text-dim);">R$ 0,00</span>
       <button type="button" class="del-btn split-remove">✕</button>`;
     rowsEl.appendChild(row);
     row.querySelector('.split-pct').addEventListener('input', updateTotal);
+    row.querySelector('.split-caixinha').addEventListener('change', updateTotal);
     row.querySelector('.split-remove').addEventListener('click', ()=>{ row.remove(); updateTotal(); });
+    updateTotal();
+  }
+
+  function prefillTemplate(key){
+    rowsEl.innerHTML = '';
+    (CAIXINHA_TEMPLATES[key] || []).forEach(item=> addSplitRow(item.nome, item.pct));
     updateTotal();
   }
 
@@ -1798,9 +1838,13 @@ function setupSplitUI(){
     const isOpen = container.style.display !== 'none';
     container.style.display = isOpen ? 'none' : 'block';
     toggleBtn.textContent = isOpen ? '+ Dividir em caixinhas' : '− Ocultar divisão em caixinhas';
-    if (!isOpen && rowsEl.children.length === 0) addSplitRow();
   });
-  addBtn.addEventListener('click', addSplitRow);
+  addBtn.addEventListener('click', ()=> addSplitRow());
+
+  const valorEl = document.getElementById('f-valor');
+  if (valorEl) valorEl.addEventListener('input', updateTotal);
+
+  setupSplitUI._prefillTemplate = prefillTemplate;
 }
 
 function renderDynFields(){
@@ -1822,6 +1866,7 @@ function renderDynFields(){
       ${splitUiHtml()}`;
     document.getElementById('f-local').addEventListener('change', e=>{
       document.getElementById('f-valor').value = DIARIA_LOCAIS[e.target.value];
+      document.getElementById('f-valor').dispatchEvent(new Event('input'));
     });
     const statusToggle = document.getElementById('status-toggle');
     if (statusToggle){
@@ -1836,6 +1881,7 @@ function renderDynFields(){
       });
     }
     setupSplitUI();
+    setupSplitUI._prefillTemplate('padrao');
   } else if (currentFinType === 'venda'){
     box.innerHTML = `
       <div class="field"><label for="f-loja">Loja</label>
@@ -1847,8 +1893,11 @@ function renderDynFields(){
       ${splitUiHtml()}`;
     document.getElementById('f-loja').addEventListener('change', e=>{
       document.getElementById('f-valor').value = VENDA_VALOR_PADRAO[e.target.value] || '';
+      document.getElementById('f-valor').dispatchEvent(new Event('input'));
+      setupSplitUI._prefillTemplate(e.target.value === 'T11Sports' ? 't11' : 'padrao');
     });
     setupSplitUI();
+    setupSplitUI._prefillTemplate(document.getElementById('f-loja').value === 'T11Sports' ? 't11' : 'padrao');
   } else {
     box.innerHTML = `
       <div class="field"><label for="f-categoria">Categoria</label>
@@ -2049,12 +2098,14 @@ function wireSheet(){
     }
     if (tab === 'caixinha-mov'){
       const valor = parseFloat(document.getElementById('f-movvalor').value) || 0;
-      if (valor <= 0) return;
+      const metaInput = document.getElementById('f-meta').value;
+      const meta = metaInput === '' ? 0 : (parseFloat(metaInput) || 0);
       const typeBtn = document.querySelector('#movtype-toggle button.sel');
       const type = typeBtn ? typeBtn.dataset.val : 'add';
       const c = state.caixinhas.find(x=>x.id===currentCaixinhaId);
       if (c){
-        c.saldo = type === 'add' ? c.saldo + valor : c.saldo - valor;
+        if (valor > 0){ c.saldo = type === 'add' ? c.saldo + valor : c.saldo - valor; }
+        c.meta = meta;
         await persist('caixinhas');
       }
     }
