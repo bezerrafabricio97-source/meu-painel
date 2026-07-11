@@ -636,10 +636,13 @@ const COLORS = { inicio:'#22c55e', agenda:'#22c55e', trabalho:'#22c55e', treino:
 const TITLES = { inicio:'Início', agenda:'Agenda', trabalho:'Trabalho', treino:'Treino', financas:'Finanças' };
 const STORAGE_KEY = {
   agenda:'agenda-events', trabalho:'trabalho-tasks', treino:'treino-logs', financas:'financas-transactions',
-  projetos:'trabalho-projetos', cronograma:'trabalho-cronograma', estudos:'trabalho-estudos', caixinhas:'financas-caixinhas'
+  projetos:'trabalho-projetos', cronograma:'trabalho-cronograma', estudos:'trabalho-estudos', caixinhas:'financas-caixinhas',
+  bancos:'financas-bancos'
 };
 
 const DIARIA_LOCAIS = { 'Villa Kaboom': 90, 'Mágico Festas': 80 };
+const DIARIA_META_MENSAL = 8;
+const BANCOS = ['Neon','Nu','C6'];
 const VENDA_LOJAS = ['T11Sports', 'Amazon', 'Shopee'];
 const VENDA_VALOR_PADRAO = { 'T11Sports': 159 };
 const GASTO_CATEGORIAS = ['Pedidos Amazon','Pedidos Shopee','Pedidos T11','Taxa de importação','Frete','Alimentação','Produtos de limpeza','Wi-fi','Internet móvel','Luz','Transporte'];
@@ -648,7 +651,7 @@ const CAIXINHA_META_PADRAO = { 'Custo Fixo': 1700, 'T11Sports': 1200, 'Moto': 10
 const DIAS_SEMANA = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
 const SUBTAB_LABELS = { tarefas:'Tarefas', projetos:'Projetos', cronograma:'Cronograma', estudos:'Estudos' };
 
-let state = { agenda:[], trabalho:[], treino:[], financas:[], projetos:[], cronograma:[], estudos:[], caixinhas:[] };
+let state = { agenda:[], trabalho:[], treino:[], financas:[], projetos:[], cronograma:[], estudos:[], caixinhas:[], bancos:[] };
 let currentTab = 'inicio';
 let trabalhoSubTab = 'tarefas';
 let financasSubTab = 'mov';
@@ -1135,17 +1138,19 @@ function finSubTabChipsHtml(){
   return `<div class="chip-row">
     <button class="chip ${financasSubTab==='mov'?'sel':''}" data-finsub="mov">Movimentações</button>
     <button class="chip ${financasSubTab==='caixinhas'?'sel':''}" data-finsub="caixinhas">Caixinhas</button>
+    <button class="chip ${financasSubTab==='mensal'?'sel':''}" data-finsub="mensal">Mensal</button>
     <button class="chip ${financasSubTab==='relatorios'?'sel':''}" data-finsub="relatorios">Relatórios</button>
   </div>`;
 }
 
-const FIN_SUB_TITLES = { mov:'Finanças', caixinhas:'Caixinhas', relatorios:'Relatórios' };
+const FIN_SUB_TITLES = { mov:'Finanças', caixinhas:'Caixinhas', mensal:'Mensal', relatorios:'Relatórios' };
 
 function renderFinancas(main){
   document.getElementById('sectionTitle').textContent = FIN_SUB_TITLES[financasSubTab];
   let inner;
   if (financasSubTab === 'mov') inner = movHtml();
   else if (financasSubTab === 'caixinhas') inner = caixinhasHtml();
+  else if (financasSubTab === 'mensal') inner = mensalHtml();
   else inner = relatoriosHtml();
 
   main.innerHTML = finSubTabChipsHtml() + inner;
@@ -1185,6 +1190,16 @@ function renderFinancas(main){
         openSheet();
       });
     });
+  } else if (financasSubTab === 'mensal'){
+    const editBtn = document.getElementById('editBancosBtn');
+    if (editBtn){
+      editBtn.addEventListener('click', ()=>{
+        const sheet = document.getElementById('sheet');
+        sheet.innerHTML = bancosForm();
+        wireSheet();
+        openSheet();
+      });
+    }
   } else {
     main.querySelectorAll('[data-relperiod]').forEach(chip=>{
       chip.addEventListener('click', ()=>{
@@ -1197,6 +1212,84 @@ function renderFinancas(main){
 }
 
 const CHART_COLORS = ['#ef4444','#f59e0b','#eab308','#3b82f6','#a78bfa','#ec4899','#14b8a6','#f97316','#64748b','#84cc16','#22c55e'];
+
+function currentMonthKey(){ return new Date().toISOString().slice(0,7); }
+function previousMonthKey(){ const d = new Date(); d.setMonth(d.getMonth()-1); return d.toISOString().slice(0,7); }
+function mesLabel(mesKey){
+  const [y,m] = mesKey.split('-').map(Number);
+  const d = new Date(y, m-1, 1);
+  return d.toLocaleDateString('pt-BR', { month:'long', year:'numeric' });
+}
+function getBancoSnapshot(mes){ return state.bancos.find(b=>b.mes===mes); }
+function liquidoDe(snap){
+  if (!snap) return 0;
+  return BANCOS.reduce((a,b)=>a+(snap.valores[b]||0), 0);
+}
+function diariaCountMes(local, mesKey){
+  return state.financas.filter(t=>t.tipo==='diaria' && t.local===local && (t.data||'').startsWith(mesKey)).length;
+}
+
+function mensalHtml(){
+  const mesAtual = currentMonthKey();
+  const mesAnterior = previousMonthKey();
+  const snapAtual = getBancoSnapshot(mesAtual);
+  const snapAnterior = getBancoSnapshot(mesAnterior);
+  const liquidoAtual = liquidoDe(snapAtual);
+  const liquidoAnterior = liquidoDe(snapAnterior);
+  let pct = null;
+  if (snapAnterior){
+    pct = liquidoAnterior !== 0 ? ((liquidoAtual - liquidoAnterior) / Math.abs(liquidoAnterior)) * 100 : (liquidoAtual !== 0 ? 100 : 0);
+  }
+
+  let html = `<div class="balance-card">
+    <div class="label">Líquido total · ${mesLabel(mesAtual)}</div>
+    <div class="amount pos">${formatMoney(liquidoAtual)}</div>
+    ${pct !== null ? `<div style="font-size:12px;color:${pct>=0?'var(--financas)':'var(--danger)'};margin-top:6px;">${pct>=0?'↑':'↓'} ${Math.abs(pct).toFixed(0)}% vs ${mesLabel(mesAnterior)}</div>` : `<div style="font-size:12px;color:var(--text-dim);margin-top:6px;">Sem mês anterior para comparar ainda</div>`}
+  </div>`;
+
+  html += `<div class="card">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+      <div class="section-label" style="margin:0;">Saldo por banco</div>
+      <button type="button" class="chip" id="editBancosBtn" style="margin:0;">Editar</button>
+    </div>
+    ${BANCOS.map(b=>`<div class="row">
+      <div class="row-title">${b}</div>
+      <div class="tx-amount pos">${formatMoney(snapAtual ? (snapAtual.valores[b]||0) : 0)}</div>
+    </div>`).join('')}
+  </div>`;
+
+  html += `<div class="section-label">Meta de diárias este mês</div>`;
+  html += `<div class="card">${Object.keys(DIARIA_LOCAIS).map(local=>{
+    const count = diariaCountMes(local, mesAtual);
+    const pctGoal = Math.min(100, Math.round((count/DIARIA_META_MENSAL)*100));
+    return `<div class="row" style="flex-direction:column; align-items:stretch; gap:8px;">
+      <div style="display:flex; justify-content:space-between;">
+        <div class="row-title">${local}</div>
+        <div class="row-sub" style="margin:0;">${count} de ${DIARIA_META_MENSAL}</div>
+      </div>
+      <div class="goal-bar-track"><div class="goal-bar-fill" style="width:${pctGoal}%"></div></div>
+    </div>`;
+  }).join('')}</div>`;
+
+  if (state.bancos.length > 0){
+    html += `<div class="section-label">Histórico mensal</div>`;
+    html += `<div class="card">${[...state.bancos].sort((a,b)=>b.mes.localeCompare(a.mes)).map(s=>`
+      <div class="row">
+        <div class="row-title">${mesLabel(s.mes)}</div>
+        <div class="tx-amount pos">${formatMoney(liquidoDe(s))}</div>
+      </div>`).join('')}</div>`;
+  }
+
+  return html;
+}
+
+function bancosForm(){
+  const mesAtual = currentMonthKey();
+  const snap = getBancoSnapshot(mesAtual);
+  return `<h2>Saldo dos bancos · ${mesLabel(mesAtual)}</h2>
+    ${BANCOS.map(b=>`<div class="field"><label for="f-banco-${b}">${b} (R$)</label><input id="f-banco-${b}" type="number" min="0" step="0.01" value="${snap ? (snap.valores[b]||0) : 0}"></div>`).join('')}
+    ${sheetActions('bancos')}`;
+}
 
 function categoriaBreakdown(period){
   const start = periodStartISO(period);
@@ -1429,6 +1522,7 @@ document.getElementById('fabBtn').addEventListener('click', ()=>{
   else if (currentTab === 'financas'){
     if (financasSubTab === 'mov'){ currentFinType = 'diaria'; sheet.innerHTML = financasForm(); }
     else if (financasSubTab === 'caixinhas'){ sheet.innerHTML = caixinhaForm(); }
+    else if (financasSubTab === 'mensal'){ sheet.innerHTML = bancosForm(); }
     else { return; }
   }
   wireSheet();
@@ -1525,6 +1619,59 @@ function financasForm(initialType){
     ${sheetActions('financas')}`;
 }
 
+function splitUiHtml(){
+  return `<div class="field">
+      <button type="button" id="toggleSplit" class="chip" style="width:100%;text-align:center;">+ Dividir em caixinhas</button>
+    </div>
+    <div id="splitContainer" style="display:none;">
+      <div id="splitRows"></div>
+      <button type="button" id="addSplitRow" class="chip" style="margin-bottom:10px;">+ Adicionar caixinha</button>
+      <div id="splitTotal" class="row-sub" style="margin:-4px 0 12px;"></div>
+    </div>`;
+}
+
+function setupSplitUI(){
+  const toggleBtn = document.getElementById('toggleSplit');
+  if (!toggleBtn) return;
+  const container = document.getElementById('splitContainer');
+  const rowsEl = document.getElementById('splitRows');
+  const addBtn = document.getElementById('addSplitRow');
+  const totalEl = document.getElementById('splitTotal');
+
+  function updateTotal(){
+    let total = 0;
+    rowsEl.querySelectorAll('.split-pct').forEach(inp=>{ total += (parseFloat(inp.value)||0); });
+    totalEl.textContent = 'Total dividido: ' + total + '%';
+    totalEl.style.color = total > 100 ? 'var(--danger)' : 'var(--text-dim)';
+  }
+
+  function addSplitRow(){
+    const row = document.createElement('div');
+    row.className = 'field';
+    row.style.display = 'flex';
+    row.style.gap = '8px';
+    row.style.alignItems = 'center';
+    row.innerHTML = `
+      <select class="split-caixinha" style="flex:2;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:11px;color:var(--text);font-size:14px;">
+        ${CAIXINHA_SUGESTOES.filter(n=>n!=='Outra').map(n=>`<option value="${n}">${n}</option>`).join('')}
+      </select>
+      <input class="split-pct" type="number" min="0" max="100" placeholder="%" style="flex:1;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:11px;color:var(--text);font-size:14px;">
+      <button type="button" class="del-btn split-remove">✕</button>`;
+    rowsEl.appendChild(row);
+    row.querySelector('.split-pct').addEventListener('input', updateTotal);
+    row.querySelector('.split-remove').addEventListener('click', ()=>{ row.remove(); updateTotal(); });
+    updateTotal();
+  }
+
+  toggleBtn.addEventListener('click', ()=>{
+    const isOpen = container.style.display !== 'none';
+    container.style.display = isOpen ? 'none' : 'block';
+    toggleBtn.textContent = isOpen ? '+ Dividir em caixinhas' : '− Ocultar divisão em caixinhas';
+    if (!isOpen && rowsEl.children.length === 0) addSplitRow();
+  });
+  addBtn.addEventListener('click', addSplitRow);
+}
+
 function renderDynFields(){
   const box = document.getElementById('dynFields');
   if (!box) return;
@@ -1540,7 +1687,8 @@ function renderDynFields(){
           <button type="button" data-val="pendente" class="sel" style="background:var(--warning);color:#14171d;">Pendente</button>
           <button type="button" data-val="recebido">Recebido</button>
         </div>
-      </div>`;
+      </div>
+      ${splitUiHtml()}`;
     document.getElementById('f-local').addEventListener('change', e=>{
       document.getElementById('f-valor').value = DIARIA_LOCAIS[e.target.value];
     });
@@ -1556,6 +1704,7 @@ function renderDynFields(){
         });
       });
     }
+    setupSplitUI();
   } else if (currentFinType === 'venda'){
     box.innerHTML = `
       <div class="field"><label for="f-loja">Loja</label>
@@ -1563,10 +1712,12 @@ function renderDynFields(){
       </div>
       <div class="field"><label for="f-desc">Produto / descrição</label><input id="f-desc" type="text" placeholder="Ex: Camisa time X" maxlength="60"></div>
       <div class="field"><label for="f-valor">Valor (R$)</label><input id="f-valor" type="number" min="0" step="0.01" value="${VENDA_VALOR_PADRAO['T11Sports']}"></div>
-      <div class="field"><label for="f-data">Data</label><input id="f-data" type="date" value="${todayISO()}"></div>`;
+      <div class="field"><label for="f-data">Data</label><input id="f-data" type="date" value="${todayISO()}"></div>
+      ${splitUiHtml()}`;
     document.getElementById('f-loja').addEventListener('change', e=>{
       document.getElementById('f-valor').value = VENDA_VALOR_PADRAO[e.target.value] || '';
     });
+    setupSplitUI();
   } else {
     box.innerHTML = `
       <div class="field"><label for="f-categoria">Categoria</label>
@@ -1736,6 +1887,25 @@ function wireSheet(){
         state.financas.push({ id: uid(), tipo:'gasto', categoria, desc, valor, data });
       }
       await persist('financas');
+
+      const splitContainer = document.getElementById('splitContainer');
+      if (splitContainer && splitContainer.style.display !== 'none'){
+        let mudouCaixinhas = false;
+        document.querySelectorAll('#splitRows > div').forEach(row=>{
+          const nome = row.querySelector('.split-caixinha').value;
+          const pct = parseFloat(row.querySelector('.split-pct').value) || 0;
+          if (pct <= 0) return;
+          const valorAlocado = valor * pct / 100;
+          let c = state.caixinhas.find(x=>x.nome === nome);
+          if (!c){
+            c = { id: uid(), nome, saldo: 0, meta: CAIXINHA_META_PADRAO[nome] || 0 };
+            state.caixinhas.push(c);
+          }
+          c.saldo += valorAlocado;
+          mudouCaixinhas = true;
+        });
+        if (mudouCaixinhas) await persist('caixinhas');
+      }
     }
     if (tab === 'caixinhas'){
       const nomeSel = document.getElementById('f-nome-sel').value;
@@ -1756,6 +1926,15 @@ function wireSheet(){
         c.saldo = type === 'add' ? c.saldo + valor : c.saldo - valor;
         await persist('caixinhas');
       }
+    }
+    if (tab === 'bancos'){
+      const mesAtual = currentMonthKey();
+      const valores = {};
+      BANCOS.forEach(b=>{ valores[b] = parseFloat(document.getElementById('f-banco-'+b).value) || 0; });
+      const existente = getBancoSnapshot(mesAtual);
+      if (existente){ existente.valores = valores; }
+      else { state.bancos.push({ id: uid(), mes: mesAtual, valores }); }
+      await persist('bancos');
     }
     closeSheet();
     render();
