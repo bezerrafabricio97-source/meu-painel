@@ -795,6 +795,43 @@ let currentFinType = 'diaria';
 let currentCaixinhaId = null;
 let dashboardPeriod = 'dia';
 let relatoriosPeriod = 'mes';
+let currentEditId = null;
+
+function getSplitPlanFromForm(){
+  const plan = [];
+  document.querySelectorAll('#splitRows > div').forEach(row=>{
+    const sel = row.querySelector('.split-caixinha');
+    const pctInput = row.querySelector('.split-pct');
+    if (!sel || !pctInput) return;
+    const pct = parseFloat(pctInput.value) || 0;
+    if (pct > 0) plan.push({ nome: sel.value, pct });
+  });
+  return plan;
+}
+
+function aplicarDistribuicao(t){
+  if (t.distribuido || !t.splitPlan || t.splitPlan.length === 0) return;
+  t.splitPlan.forEach(item=>{
+    const valorAlocado = t.valor * item.pct / 100;
+    let c = state.caixinhas.find(x=>x.nome === item.nome);
+    if (!c){
+      c = { id: uid(), nome: item.nome, saldo: 0, meta: CAIXINHA_META_PADRAO[item.nome] || 0 };
+      state.caixinhas.push(c);
+    }
+    c.saldo += valorAlocado;
+  });
+  t.distribuido = true;
+}
+
+function reverterDistribuicao(t){
+  if (!t.distribuido || !t.splitPlan) return;
+  t.splitPlan.forEach(item=>{
+    const valorAlocado = t.valor * item.pct / 100;
+    const c = state.caixinhas.find(x=>x.nome === item.nome);
+    if (c) c.saldo -= valorAlocado;
+  });
+  t.distribuido = false;
+}
 
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 
@@ -967,6 +1004,7 @@ function wireQuickActions(main){
     btn.addEventListener('click', ()=>{
       const action = btn.dataset.qa;
       const sheet = document.getElementById('sheet');
+      currentEditId = null;
       if (action === 'entrada'){ currentFinType = 'diaria'; sheet.innerHTML = financasForm('diaria'); wireSheet(); openSheet(); }
       else if (action === 'gasto'){ currentFinType = 'gasto'; sheet.innerHTML = financasForm('gasto'); wireSheet(); openSheet(); }
       else if (action === 'treino'){ sheet.innerHTML = treinoForm(); wireSheet(); openSheet(); }
@@ -1310,11 +1348,25 @@ function renderFinancas(main){
       });
     });
     main.querySelectorAll('[data-toggle-status]').forEach(badge=>{
-      badge.addEventListener('click', ()=>{
+      badge.addEventListener('click', (ev)=>{
+        ev.stopPropagation();
         const item = state.financas.find(t=>t.id===badge.dataset.toggleStatus);
-        item.status = item.status === 'pendente' ? 'recebido' : 'pendente';
+        if (item.status === 'pendente'){
+          item.status = 'recebido';
+          aplicarDistribuicao(item);
+        } else {
+          item.status = 'pendente';
+          reverterDistribuicao(item);
+        }
         persist('financas');
+        persist('caixinhas');
         render();
+      });
+    });
+    main.querySelectorAll('[data-edit]').forEach(btn=>{
+      btn.addEventListener('click', (ev)=>{
+        ev.stopPropagation();
+        openEditFinanca(btn.dataset.edit);
       });
     });
   } else if (financasSubTab === 'caixinhas'){
@@ -1605,6 +1657,7 @@ function financasRowHtml(t){
       </div>
       <span class="status-badge ${t.status}" data-toggle-status="${t.id}">${t.status === 'recebido' ? 'Recebido' : 'Pendente'}</span>
       <div class="tx-amount ${t.status==='recebido'?'pos':'pending'}">${formatMoney(t.valor)}</div>
+      <button class="del-btn" data-edit="${t.id}" title="Editar">✎</button>
       <button class="del-btn" data-del="financas" data-id="${t.id}">✕</button>
     </div>`;
   }
@@ -1615,6 +1668,7 @@ function financasRowHtml(t){
         <div class="row-sub">${formatDateShort(t.data)}</div>
       </div>
       <div class="tx-amount pos">+ ${formatMoney(t.valor)}</div>
+      <button class="del-btn" data-edit="${t.id}" title="Editar">✎</button>
       <button class="del-btn" data-del="financas" data-id="${t.id}">✕</button>
     </div>`;
   }
@@ -1624,6 +1678,7 @@ function financasRowHtml(t){
       <div class="row-sub">${formatDateShort(t.data)}</div>
     </div>
     <div class="tx-amount neg">− ${formatMoney(t.valor)}</div>
+    <button class="del-btn" data-edit="${t.id}" title="Editar">✎</button>
     <button class="del-btn" data-del="financas" data-id="${t.id}">✕</button>
   </div>`;
 }
@@ -1633,6 +1688,13 @@ function bindDeletes(main){
     btn.addEventListener('click', (ev)=>{
       ev.stopPropagation();
       const tab = btn.dataset.del;
+      if (tab === 'financas'){
+        const tx = state.financas.find(t=>t.id===btn.dataset.id);
+        if (tx && tx.distribuido){
+          reverterDistribuicao(tx);
+          persist('caixinhas');
+        }
+      }
       state[tab] = state[tab].filter(item=>item.id !== btn.dataset.id);
       persist(tab);
       render();
@@ -1641,7 +1703,18 @@ function bindDeletes(main){
 }
 
 function openSheet(){ document.getElementById('overlay').classList.add('open'); }
-function closeSheet(){ document.getElementById('overlay').classList.remove('open'); }
+function closeSheet(){ document.getElementById('overlay').classList.remove('open'); currentEditId = null; }
+
+function openEditFinanca(id){
+  const tx = state.financas.find(t=>t.id===id);
+  if (!tx) return;
+  currentEditId = id;
+  currentFinType = tx.tipo;
+  const sheet = document.getElementById('sheet');
+  sheet.innerHTML = financasForm(tx.tipo);
+  wireSheet();
+  openSheet();
+}
 
 document.getElementById('overlay').addEventListener('click', e=>{
   if (e.target.id === 'overlay') closeSheet();
@@ -1649,6 +1722,7 @@ document.getElementById('overlay').addEventListener('click', e=>{
 
 function handleAddClick(){
   const sheet = document.getElementById('sheet');
+  currentEditId = null;
   if (currentTab === 'inicio'){ currentFinType = 'diaria'; sheet.innerHTML = financasForm(); }
   else if (currentTab === 'agenda') sheet.innerHTML = agendaForm();
   else if (currentTab === 'trabalho'){
@@ -1749,9 +1823,11 @@ function caixinhaMovForm(c){
 }
 
 function financasForm(initialType){
-  const t = initialType || 'diaria';
+  const editingTx = currentEditId ? state.financas.find(t=>t.id===currentEditId) : null;
+  const t = editingTx ? editingTx.tipo : (initialType || 'diaria');
+  const titulo = editingTx ? 'Editar movimentação' : 'Nova movimentação';
   const selStyle = { diaria:'var(--financas)', venda:'var(--financas)', gasto:'var(--danger)' };
-  return `<h2>Nova movimentação</h2>
+  return `<h2>${titulo}</h2>
     <div class="field"><label>Tipo</label>
       <div class="toggle-group" id="fintype-toggle">
         <button type="button" data-val="diaria" class="${t==='diaria'?'sel':''}" style="${t==='diaria'?`background:${selStyle.diaria};color:#14171d;`:''}">Diária</button>
@@ -1828,10 +1904,14 @@ function setupSplitUI(){
     updateTotal();
   }
 
-  function prefillTemplate(key){
+  function setRows(rows){
     rowsEl.innerHTML = '';
-    (CAIXINHA_TEMPLATES[key] || []).forEach(item=> addSplitRow(item.nome, item.pct));
+    (rows || []).forEach(item=> addSplitRow(item.nome, item.pct));
     updateTotal();
+  }
+
+  function prefillTemplate(key){
+    setRows(CAIXINHA_TEMPLATES[key]);
   }
 
   toggleBtn.addEventListener('click', ()=>{
@@ -1845,22 +1925,29 @@ function setupSplitUI(){
   if (valorEl) valorEl.addEventListener('input', updateTotal);
 
   setupSplitUI._prefillTemplate = prefillTemplate;
+  setupSplitUI._setRows = setRows;
 }
 
 function renderDynFields(){
   const box = document.getElementById('dynFields');
   if (!box) return;
+  const editingTx = currentEditId ? state.financas.find(t=>t.id===currentEditId) : null;
+
   if (currentFinType === 'diaria'){
+    const local = editingTx ? editingTx.local : 'Villa Kaboom';
+    const valorIni = editingTx ? editingTx.valor : DIARIA_LOCAIS['Villa Kaboom'];
+    const dataIni = editingTx ? editingTx.data : todayISO();
+    const statusIni = editingTx ? editingTx.status : 'pendente';
     box.innerHTML = `
       <div class="field"><label for="f-local">Local de trabalho</label>
-        <select id="f-local">${Object.keys(DIARIA_LOCAIS).map(l=>`<option value="${l}">${l} (${formatMoney(DIARIA_LOCAIS[l])})</option>`).join('')}</select>
+        <select id="f-local">${Object.keys(DIARIA_LOCAIS).map(l=>`<option value="${l}" ${l===local?'selected':''}>${l} (${formatMoney(DIARIA_LOCAIS[l])})</option>`).join('')}</select>
       </div>
-      <div class="field"><label for="f-valor">Valor da diária (R$)</label><input id="f-valor" type="number" min="0" step="0.01" value="${DIARIA_LOCAIS['Villa Kaboom']}"></div>
-      <div class="field"><label for="f-data">Data trabalhada</label><input id="f-data" type="date" value="${todayISO()}"></div>
+      <div class="field"><label for="f-valor">Valor da diária (R$)</label><input id="f-valor" type="number" min="0" step="0.01" value="${valorIni}"></div>
+      <div class="field"><label for="f-data">Data trabalhada</label><input id="f-data" type="date" value="${dataIni}"></div>
       <div class="field"><label>Status</label>
         <div class="toggle-group" id="status-toggle">
-          <button type="button" data-val="pendente" class="sel" style="background:var(--warning);color:#14171d;">Pendente</button>
-          <button type="button" data-val="recebido">Recebido</button>
+          <button type="button" data-val="pendente" class="${statusIni==='pendente'?'sel':''}" style="${statusIni==='pendente'?'background:var(--warning);color:#14171d;':''}">Pendente</button>
+          <button type="button" data-val="recebido" class="${statusIni==='recebido'?'sel':''}" style="${statusIni==='recebido'?'background:var(--financas);color:#14171d;':''}">Recebido</button>
         </div>
       </div>
       ${splitUiHtml()}`;
@@ -1881,15 +1968,23 @@ function renderDynFields(){
       });
     }
     setupSplitUI();
-    setupSplitUI._prefillTemplate('padrao');
+    if (editingTx && editingTx.splitPlan && editingTx.splitPlan.length){
+      setupSplitUI._setRows(editingTx.splitPlan);
+    } else {
+      setupSplitUI._prefillTemplate('padrao');
+    }
   } else if (currentFinType === 'venda'){
+    const loja = editingTx ? editingTx.loja : 'T11Sports';
+    const valorIni = editingTx ? editingTx.valor : VENDA_VALOR_PADRAO['T11Sports'];
+    const dataIni = editingTx ? editingTx.data : todayISO();
+    const descIni = editingTx ? (editingTx.desc || '') : '';
     box.innerHTML = `
       <div class="field"><label for="f-loja">Loja</label>
-        <select id="f-loja">${VENDA_LOJAS.map(l=>`<option value="${l}">${l}</option>`).join('')}</select>
+        <select id="f-loja">${VENDA_LOJAS.map(l=>`<option value="${l}" ${l===loja?'selected':''}>${l}</option>`).join('')}</select>
       </div>
-      <div class="field"><label for="f-desc">Produto / descrição</label><input id="f-desc" type="text" placeholder="Ex: Camisa time X" maxlength="60"></div>
-      <div class="field"><label for="f-valor">Valor (R$)</label><input id="f-valor" type="number" min="0" step="0.01" value="${VENDA_VALOR_PADRAO['T11Sports']}"></div>
-      <div class="field"><label for="f-data">Data</label><input id="f-data" type="date" value="${todayISO()}"></div>
+      <div class="field"><label for="f-desc">Produto / descrição</label><input id="f-desc" type="text" placeholder="Ex: Camisa time X" maxlength="60" value="${esc(descIni)}"></div>
+      <div class="field"><label for="f-valor">Valor (R$)</label><input id="f-valor" type="number" min="0" step="0.01" value="${valorIni}"></div>
+      <div class="field"><label for="f-data">Data</label><input id="f-data" type="date" value="${dataIni}"></div>
       ${splitUiHtml()}`;
     document.getElementById('f-loja').addEventListener('change', e=>{
       document.getElementById('f-valor').value = VENDA_VALOR_PADRAO[e.target.value] || '';
@@ -1897,15 +1992,23 @@ function renderDynFields(){
       setupSplitUI._prefillTemplate(e.target.value === 'T11Sports' ? 't11' : 'padrao');
     });
     setupSplitUI();
-    setupSplitUI._prefillTemplate(document.getElementById('f-loja').value === 'T11Sports' ? 't11' : 'padrao');
+    if (editingTx && editingTx.splitPlan && editingTx.splitPlan.length){
+      setupSplitUI._setRows(editingTx.splitPlan);
+    } else {
+      setupSplitUI._prefillTemplate(loja === 'T11Sports' ? 't11' : 'padrao');
+    }
   } else {
+    const categoria = editingTx ? editingTx.categoria : GASTO_CATEGORIAS[0];
+    const descIni = editingTx ? (editingTx.desc || '') : '';
+    const valorIni = editingTx ? editingTx.valor : '';
+    const dataIni = editingTx ? editingTx.data : todayISO();
     box.innerHTML = `
       <div class="field"><label for="f-categoria">Categoria</label>
-        <select id="f-categoria">${GASTO_CATEGORIAS.map(c=>`<option value="${c}">${c}</option>`).join('')}</select>
+        <select id="f-categoria">${GASTO_CATEGORIAS.map(c=>`<option value="${c}" ${c===categoria?'selected':''}>${c}</option>`).join('')}</select>
       </div>
-      <div class="field"><label for="f-desc">Descrição (opcional)</label><input id="f-desc" type="text" placeholder="Detalhe do gasto" maxlength="60"></div>
-      <div class="field"><label for="f-valor">Valor (R$)</label><input id="f-valor" type="number" min="0" step="0.01" placeholder="0,00"></div>
-      <div class="field"><label for="f-data">Data</label><input id="f-data" type="date" value="${todayISO()}"></div>`;
+      <div class="field"><label for="f-desc">Descrição (opcional)</label><input id="f-desc" type="text" placeholder="Detalhe do gasto" maxlength="60" value="${esc(descIni)}"></div>
+      <div class="field"><label for="f-valor">Valor (R$)</label><input id="f-valor" type="number" min="0" step="0.01" placeholder="0,00" value="${valorIni}"></div>
+      <div class="field"><label for="f-data">Data</label><input id="f-data" type="date" value="${dataIni}"></div>`;
   }
 }
 
@@ -2052,40 +2155,40 @@ function wireSheet(){
       const valor = parseFloat(document.getElementById('f-valor').value) || 0;
       const data = document.getElementById('f-data').value || todayISO();
       if (valor <= 0) return;
-      if (currentFinType === 'diaria'){
-        const local = document.getElementById('f-local').value;
-        const statusBtn = document.querySelector('#status-toggle button.sel');
-        const status = statusBtn ? statusBtn.dataset.val : 'pendente';
-        state.financas.push({ id: uid(), tipo:'diaria', local, valor, data, status });
-      } else if (currentFinType === 'venda'){
-        const loja = document.getElementById('f-loja').value;
-        const desc = document.getElementById('f-desc').value.trim();
-        state.financas.push({ id: uid(), tipo:'venda', loja, desc, valor, data });
-      } else {
-        const categoria = document.getElementById('f-categoria').value;
-        const desc = document.getElementById('f-desc').value.trim();
-        state.financas.push({ id: uid(), tipo:'gasto', categoria, desc, valor, data });
-      }
-      await persist('financas');
+      const splitPlan = getSplitPlanFromForm();
 
-      const splitContainer = document.getElementById('splitContainer');
-      if (splitContainer && splitContainer.style.display !== 'none'){
-        let mudouCaixinhas = false;
-        document.querySelectorAll('#splitRows > div').forEach(row=>{
-          const nome = row.querySelector('.split-caixinha').value;
-          const pct = parseFloat(row.querySelector('.split-pct').value) || 0;
-          if (pct <= 0) return;
-          const valorAlocado = valor * pct / 100;
-          let c = state.caixinhas.find(x=>x.nome === nome);
-          if (!c){
-            c = { id: uid(), nome, saldo: 0, meta: CAIXINHA_META_PADRAO[nome] || 0 };
-            state.caixinhas.push(c);
-          }
-          c.saldo += valorAlocado;
-          mudouCaixinhas = true;
-        });
-        if (mudouCaixinhas) await persist('caixinhas');
+      let tx = currentEditId ? state.financas.find(t=>t.id===currentEditId) : null;
+      if (tx){
+        reverterDistribuicao(tx);
+      } else {
+        tx = { id: uid() };
+        state.financas.push(tx);
       }
+
+      tx.tipo = currentFinType;
+      tx.valor = valor;
+      tx.data = data;
+      tx.splitPlan = splitPlan;
+      delete tx.local; delete tx.status; delete tx.loja; delete tx.categoria; delete tx.desc;
+
+      if (currentFinType === 'diaria'){
+        tx.local = document.getElementById('f-local').value;
+        const statusBtn = document.querySelector('#status-toggle button.sel');
+        tx.status = statusBtn ? statusBtn.dataset.val : 'pendente';
+        if (tx.status === 'recebido') aplicarDistribuicao(tx);
+      } else if (currentFinType === 'venda'){
+        tx.loja = document.getElementById('f-loja').value;
+        tx.desc = document.getElementById('f-desc').value.trim();
+        aplicarDistribuicao(tx);
+      } else {
+        tx.categoria = document.getElementById('f-categoria').value;
+        tx.desc = document.getElementById('f-desc').value.trim();
+        tx.distribuido = false;
+      }
+
+      await persist('financas');
+      await persist('caixinhas');
+      currentEditId = null;
     }
     if (tab === 'caixinhas'){
       const nomeSel = document.getElementById('f-nome-sel').value;
