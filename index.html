@@ -665,6 +665,32 @@
       max-height:82vh;
     }
     .overlay.open .sheet{ opacity:1; }
+
+    /* --- Polimento desktop: hover states --- */
+    .sidebar .tab{ transition:background .15s ease, color .15s ease; cursor:pointer; }
+    .sidebar .tab:not(.active):hover{ background:var(--surface-2); }
+
+    .card{ transition:border-color .15s ease; }
+    .card:hover{ border-color:#333b44; }
+
+    .chip{ cursor:pointer; transition:background .15s ease, border-color .15s ease; }
+    .chip:not(.sel):hover{ background:var(--surface-2); }
+
+    .qa-btn{ cursor:pointer; transition:transform .12s ease, border-color .15s ease; }
+    .qa-btn:hover{ border-color:var(--current); transform:translateY(-1px); }
+
+    .btn-save{ cursor:pointer; transition:opacity .15s ease, transform .1s ease; }
+    .btn-save:hover{ opacity:.9; }
+    .btn-save:active{ transform:scale(0.98); }
+
+    .btn-cancel{ cursor:pointer; transition:background .15s ease; }
+    .btn-cancel:hover{ background:#242a31; }
+
+    .fab-desktop{ transition:transform .12s ease, box-shadow .12s ease; }
+    .fab-desktop:hover{ transform:translateY(-1px); box-shadow:0 6px 18px rgba(34,197,94,0.45); }
+
+    .del-btn{ transition:background .12s ease, color .12s ease; }
+    .del-btn:hover{ background:rgba(239,68,68,0.12); }
   }
 </style>
 </head>
@@ -760,12 +786,17 @@ const TITLES = { inicio:'Início', agenda:'Agenda', trabalho:'Trabalho', treino:
 const STORAGE_KEY = {
   agenda:'agenda-events', trabalho:'trabalho-tasks', treino:'treino-logs', financas:'financas-transactions',
   projetos:'trabalho-projetos', cronograma:'trabalho-cronograma', estudos:'trabalho-estudos', caixinhas:'financas-caixinhas',
-  bancos:'financas-bancos'
+  bancos:'financas-bancos', trabalhoSessoes:'trabalho-sessoes', habitos:'vida-habitos', habitoLogs:'vida-habito-logs'
 };
 
 const DIARIA_LOCAIS = { 'Villa Kaboom': 90, 'Mágico Festas': 80 };
 const DIARIA_META_MENSAL = 8;
 const BANCOS = ['Neon','Nu','C6'];
+const BANCO_FONTES = {
+  'Neon': { diarias: ['Villa Kaboom','Mágico Festas'] },
+  'Nu': { lojas: ['Amazon'] },
+  'C6': { lojas: ['Shopee'] }
+};
 const VENDA_LOJAS = ['T11Sports', 'Amazon', 'Shopee'];
 const VENDA_VALOR_PADRAO = { 'T11Sports': 159 };
 const GASTO_CATEGORIAS = ['Pedidos Amazon','Pedidos Shopee','Pedidos T11','Taxa de importação','Frete','Alimentação','iFood','Produtos de limpeza','Wi-fi','Internet móvel','Luz','Transporte'];
@@ -778,15 +809,15 @@ const CAIXINHA_TEMPLATES = {
     { nome:'Custo Fixo', pct:8 }, { nome:'Alimentação', pct:9 }
   ],
   padrao: [
-    { nome:'Custo Fixo', pct:18 }, { nome:'Alimentação', pct:27 }, { nome:'iFood', pct:6 },
-    { nome:'Transporte', pct:13 }, { nome:'Cabelo', pct:4 }, { nome:'Upgrade', pct:9 },
-    { nome:'Consultoria', pct:9 }, { nome:'Moto', pct:14 }
+    { nome:'Custo Fixo', pct:20 }, { nome:'Alimentação', pct:25 }, { nome:'iFood', pct:5 },
+    { nome:'Transporte', pct:15 }, { nome:'Cabelo', pct:5 }, { nome:'Upgrade', pct:10 },
+    { nome:'Consultoria', pct:10 }, { nome:'Moto', pct:10 }
   ]
 };
 const DIAS_SEMANA = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
 const SUBTAB_LABELS = { tarefas:'Tarefas', projetos:'Projetos', cronograma:'Cronograma', estudos:'Estudos' };
 
-let state = { agenda:[], trabalho:[], treino:[], financas:[], projetos:[], cronograma:[], estudos:[], caixinhas:[], bancos:[] };
+let state = { agenda:[], trabalho:[], treino:[], financas:[], projetos:[], cronograma:[], estudos:[], caixinhas:[], bancos:[], trabalhoSessoes:[], habitos:[], habitoLogs:[] };
 let currentTab = 'inicio';
 let trabalhoSubTab = 'tarefas';
 let financasSubTab = 'mov';
@@ -794,8 +825,11 @@ let financasFilter = 'todos';
 let currentFinType = 'diaria';
 let currentCaixinhaId = null;
 let dashboardPeriod = 'dia';
-let relatoriosPeriod = 'mes';
+let relatoriosMes = null; // definido no startApp
 let currentEditId = null;
+let treinoSubTab = 'treino';
+let controleMes = null; // definido no startApp
+let cronometro = { tipo:'estudo', running:false, startedAt:null, accumulatedMs:0 };
 
 function getSplitPlanFromForm(){
   const plan = [];
@@ -863,6 +897,10 @@ async function loadAll(){
       state[tab] = [];
     }
   }
+  try{
+    const rawCrono = localStorage.getItem(LS_PREFIX + 'cronometro-estado');
+    if (rawCrono) cronometro = JSON.parse(rawCrono);
+  }catch(e){}
 }
 
 async function persist(tab){
@@ -871,6 +909,12 @@ async function persist(tab){
   }catch(e){
     console.error('Falha ao salvar', tab, e);
   }
+}
+
+async function persistCronometro(){
+  try{
+    localStorage.setItem(LS_PREFIX + 'cronometro-estado', JSON.stringify(cronometro));
+  }catch(e){}
 }
 
 function esc(str){
@@ -893,6 +937,95 @@ function formatDuracao(mins){
 }
 
 function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+/* ---------- CRONÔMETRO ---------- */
+function cronoElapsedMs(){
+  let ms = cronometro.accumulatedMs || 0;
+  if (cronometro.running && cronometro.startedAt) ms += (Date.now() - cronometro.startedAt);
+  return ms;
+}
+function cronoFormat(ms){
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const pad = n => String(n).padStart(2,'0');
+  return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+}
+function cronoStart(){
+  if (cronometro.running) return;
+  cronometro.running = true;
+  cronometro.startedAt = Date.now();
+  persistCronometro();
+}
+function cronoPause(){
+  if (!cronometro.running) return;
+  cronometro.accumulatedMs = (cronometro.accumulatedMs || 0) + (Date.now() - cronometro.startedAt);
+  cronometro.running = false;
+  cronometro.startedAt = null;
+  persistCronometro();
+}
+function cronoSetTipo(tipo){
+  if (cronometro.running) return;
+  cronometro.tipo = tipo;
+  persistCronometro();
+}
+async function cronoFinalizar(){
+  if (cronometro.running) cronoPause();
+  const totalMin = Math.round(cronoElapsedMs() / 60000);
+  if (totalMin >= 1){
+    if (cronometro.tipo === 'estudo'){
+      state.estudos.push({ id: uid(), date: todayISO(), materia: 'Cronômetro', duracao: totalMin });
+      await persist('estudos');
+    } else {
+      state.trabalhoSessoes.push({ id: uid(), date: todayISO(), duracao: totalMin });
+      await persist('trabalhoSessoes');
+    }
+  }
+  cronometro = { tipo: cronometro.tipo, running:false, startedAt:null, accumulatedMs:0 };
+  await persistCronometro();
+  render();
+}
+function updateCronoDisplay(){
+  const el = document.getElementById('cronoDisplay');
+  if (el && cronometro.running) el.textContent = cronoFormat(cronoElapsedMs());
+}
+setInterval(updateCronoDisplay, 1000);
+
+function cronoWidgetHtml(){
+  const runningEstudo = cronometro.tipo === 'estudo';
+  return `<div class="card" id="cronoCard">
+    <div class="section-label" style="margin-top:0;">Cronômetro</div>
+    <div class="toggle-group" id="crono-tipo-toggle" style="margin-bottom:14px;">
+      <button type="button" data-val="estudo" class="${runningEstudo?'sel':''}" style="${runningEstudo?'background:var(--current);color:#0a0d10;':''}" ${cronometro.running?'disabled':''}>Estudo</button>
+      <button type="button" data-val="trabalho" class="${!runningEstudo?'sel':''}" style="${!runningEstudo?'background:var(--current);color:#0a0d10;':''}" ${cronometro.running?'disabled':''}>Trabalho</button>
+    </div>
+    <div style="text-align:center; margin-bottom:16px;">
+      <div id="cronoDisplay" style="font-family:var(--font-mono); font-size:38px; font-weight:600; letter-spacing:.02em;">${cronoFormat(cronoElapsedMs())}</div>
+    </div>
+    <div class="sheet-actions" style="margin-top:0;">
+      ${cronometro.running
+        ? `<button type="button" class="btn-cancel" id="cronoPauseBtn">Pausar</button>`
+        : `<button type="button" class="btn-cancel" id="cronoStartBtn">${cronoElapsedMs()>0?'Retomar':'Iniciar'}</button>`}
+      <button type="button" class="btn-save" id="cronoFinishBtn" ${cronoElapsedMs()===0?'disabled style="opacity:.5;"':''}>Encerrar</button>
+    </div>
+  </div>`;
+}
+function wireCronoWidget(main){
+  const tipoToggle = document.getElementById('crono-tipo-toggle');
+  if (tipoToggle){
+    tipoToggle.querySelectorAll('button').forEach(b=>{
+      b.addEventListener('click', ()=>{ cronoSetTipo(b.dataset.val); render(); });
+    });
+  }
+  const startBtn = document.getElementById('cronoStartBtn');
+  if (startBtn) startBtn.addEventListener('click', ()=>{ cronoStart(); render(); });
+  const pauseBtn = document.getElementById('cronoPauseBtn');
+  if (pauseBtn) pauseBtn.addEventListener('click', ()=>{ cronoPause(); render(); });
+  const finishBtn = document.getElementById('cronoFinishBtn');
+  if (finishBtn) finishBtn.addEventListener('click', ()=> cronoFinalizar());
+}
+
 
 function periodStartISO(period){
   const d = new Date();
@@ -1017,9 +1150,10 @@ function computeDashboardStats(period){
   const start = periodStartISO(period);
   const treinosPeriodo = state.treino.filter(l=>l.date >= start).length;
   const estudosPeriodo = state.estudos.filter(l=>l.date >= start).reduce((a,l)=>a + (l.duracao||0), 0);
+  const trabalhoPeriodo = state.trabalhoSessoes.filter(l=>l.date >= start).reduce((a,l)=>a + (l.duracao||0), 0);
   const finEntradas = state.financas.filter(t=>(t.tipo==='diaria'||t.tipo==='venda') && t.data >= start).reduce((a,t)=>a+t.valor,0);
   const finGastos = state.financas.filter(t=>t.tipo==='gasto' && t.data >= start).reduce((a,t)=>a+t.valor,0);
-  return { treinosPeriodo, estudosPeriodo, finEntradas, finGastos, saldoPeriodo: finEntradas - finGastos };
+  return { treinosPeriodo, estudosPeriodo, trabalhoPeriodo, finEntradas, finGastos, saldoPeriodo: finEntradas - finGastos };
 }
 
 function updateBadges(){
@@ -1058,6 +1192,8 @@ function renderInicio(main){
 
   let html = quickActionsHtml();
 
+  html += cronoWidgetHtml();
+
   html += `<div class="chip-row">
     <button class="chip ${dashboardPeriod==='dia'?'sel':''}" data-period="dia">Dia</button>
     <button class="chip ${dashboardPeriod==='semana'?'sel':''}" data-period="semana">7 dias</button>
@@ -1086,6 +1222,7 @@ function renderInicio(main){
     <div class="stat-card"><div class="snum" style="color:var(--warning)">${formatMoney(fin.pendente)}</div><div class="slbl">A receber</div></div>
     <div class="stat-card"><div class="snum" style="color:var(--current)">${stats.treinosPeriodo}</div><div class="slbl">Treinos no período</div></div>
     <div class="stat-card"><div class="snum" style="color:var(--current)">${formatDuracao(stats.estudosPeriodo)}</div><div class="slbl">Estudo no período</div></div>
+    <div class="stat-card"><div class="snum" style="color:var(--current)">${formatDuracao(stats.trabalhoPeriodo)}</div><div class="slbl">Trabalho no período</div></div>
   </div>`;
 
   html += `<div class="section-label">Próximo compromisso</div>`;
@@ -1110,6 +1247,7 @@ function renderInicio(main){
     });
   });
   wireQuickActions(main);
+  wireCronoWidget(main);
 }
 
 function weekDotsHtml(){
@@ -1281,7 +1419,37 @@ function estudosHtml(){
   return html;
 }
 
+function subTabChipsTreinoHtml(){
+  return `<div class="chip-row">
+    <button class="chip ${treinoSubTab==='treino'?'sel':''}" data-treinosub="treino">Treino</button>
+    <button class="chip ${treinoSubTab==='habitos'?'sel':''}" data-treinosub="habitos">Hábitos</button>
+  </div>`;
+}
+
 function renderTreino(main){
+  document.getElementById('sectionTitle').textContent = treinoSubTab === 'treino' ? 'Treino' : 'Hábitos';
+  const inner = treinoSubTab === 'treino' ? treinoLogHtml() : habitosHtml();
+  main.innerHTML = subTabChipsTreinoHtml() + inner;
+  bindDeletes(main);
+
+  main.querySelectorAll('[data-treinosub]').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      treinoSubTab = chip.dataset.treinosub;
+      render();
+    });
+  });
+
+  if (treinoSubTab === 'habitos'){
+    main.querySelectorAll('[data-habito-toggle]').forEach(dot=>{
+      dot.addEventListener('click', ()=>{
+        toggleHabitoHoje(dot.dataset.habitoToggle);
+        render();
+      });
+    });
+  }
+}
+
+function treinoLogHtml(){
   const logs = [...state.treino].sort((a,b)=> b.date.localeCompare(a.date));
   const now = new Date();
   const startWeek = new Date(now); startWeek.setDate(now.getDate() - now.getDay());
@@ -1302,8 +1470,49 @@ function renderTreino(main){
         <button class="del-btn" data-del="treino" data-id="${l.id}">✕</button>
       </div>`).join('')}</div>`;
   }
-  main.innerHTML = html;
-  bindDeletes(main);
+  return html;
+}
+
+function isHabitoConcluidoHoje(habitoId){
+  return state.habitoLogs.some(l=>l.habitoId===habitoId && l.date===todayISO());
+}
+function toggleHabitoHoje(habitoId){
+  const hoje = todayISO();
+  const idx = state.habitoLogs.findIndex(l=>l.habitoId===habitoId && l.date===hoje);
+  if (idx >= 0) state.habitoLogs.splice(idx,1);
+  else state.habitoLogs.push({ id: uid(), habitoId, date: hoje });
+  persist('habitoLogs');
+}
+function habitoWeekDots(habitoId){
+  const labels = ['D','S','T','Q','Q','S','S'];
+  const now = new Date();
+  const startWeek = new Date(now); startWeek.setDate(now.getDate() - now.getDay());
+  const logged = new Set(state.habitoLogs.filter(l=>l.habitoId===habitoId).map(l=>l.date));
+  let html = '<div class="week-dots">';
+  for (let i=0;i<7;i++){
+    const d = new Date(startWeek); d.setDate(startWeek.getDate()+i);
+    const dISO = d.toISOString().slice(0,10);
+    const isToday = dISO === todayISO();
+    const done = logged.has(dISO);
+    html += `<div class="week-dot ${done?'trained':''} ${isToday?'today':''}" ${isToday?`data-habito-toggle="${habitoId}" style="cursor:pointer;"`:''}>
+      <div class="wd-circle"></div>
+      <div class="wd-lbl">${labels[i]}</div>
+    </div>`;
+  }
+  html += '</div>';
+  return html;
+}
+function habitosHtml(){
+  if (state.habitos.length === 0){
+    return `<div class="empty"><span class="big">Nenhum hábito ainda</span>Toque no + para criar um (ex: Beber água, Ler, Dormir cedo). Toque no ponto de hoje pra marcar como feito.</div>`;
+  }
+  return state.habitos.map(h=>`<div class="card">
+    <div class="row" style="border:none; padding:0 0 10px;">
+      <div class="row-title" style="flex:1;">${esc(h.nome)}</div>
+      <button class="del-btn" data-del="habitos" data-id="${h.id}">✕</button>
+    </div>
+    ${habitoWeekDots(h.id)}
+  </div>`).join('');
 }
 
 function formatDateShort(dateStr){
@@ -1392,9 +1601,13 @@ function renderFinancas(main){
       });
     }
   } else {
-    main.querySelectorAll('[data-relperiod]').forEach(chip=>{
-      chip.addEventListener('click', ()=>{
-        relatoriosPeriod = chip.dataset.relperiod;
+    main.querySelectorAll('[data-monthnav]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const [alvo, dir] = btn.dataset.monthnav.split(':');
+        if (alvo === 'relatorios'){
+          const novo = shiftMonth(relatoriosMes, dir==='next'?1:-1);
+          if (novo <= currentMonthKey()) relatoriosMes = novo;
+        }
         render();
       });
     });
@@ -1420,6 +1633,17 @@ function diariaCountMes(local, mesKey){
   return state.financas.filter(t=>t.tipo==='diaria' && t.local===local && (t.data||'').startsWith(mesKey)).length;
 }
 
+function receitasBancoMes(banco, mesKey){
+  const fontes = BANCO_FONTES[banco] || {};
+  let total = 0;
+  state.financas.forEach(t=>{
+    if (!(t.data||'').startsWith(mesKey)) return;
+    if (t.tipo === 'diaria' && t.status === 'recebido' && fontes.diarias && fontes.diarias.includes(t.local)) total += t.valor;
+    if (t.tipo === 'venda' && fontes.lojas && fontes.lojas.includes(t.loja)) total += t.valor;
+  });
+  return total;
+}
+
 function mensalHtml(){
   const mesAtual = currentMonthKey();
   const mesAnterior = previousMonthKey();
@@ -1432,21 +1656,42 @@ function mensalHtml(){
     pct = liquidoAnterior !== 0 ? ((liquidoAtual - liquidoAnterior) / Math.abs(liquidoAnterior)) * 100 : (liquidoAtual !== 0 ? 100 : 0);
   }
 
+  const totalCaixinhas = state.caixinhas.reduce((a,c)=>a+(c.saldo||0),0);
+  const patrimonioTotal = liquidoAtual + totalCaixinhas;
+
   let html = `<div class="balance-card">
     <div class="label">Líquido total · ${mesLabel(mesAtual)}</div>
     <div class="amount pos">${formatMoney(liquidoAtual)}</div>
     ${pct !== null ? `<div style="font-size:12px;color:${pct>=0?'var(--financas)':'var(--danger)'};margin-top:6px;">${pct>=0?'↑':'↓'} ${Math.abs(pct).toFixed(0)}% vs ${mesLabel(mesAnterior)}</div>` : `<div style="font-size:12px;color:var(--text-dim);margin-top:6px;">Sem mês anterior para comparar ainda</div>`}
   </div>`;
 
+  if (totalCaixinhas > 0){
+    html += `<div class="card" style="display:flex; align-items:center; justify-content:space-between;">
+      <div>
+        <div class="section-label" style="margin:0 0 4px;">Patrimônio total</div>
+        <div class="row-sub" style="margin:0;">Bancos + caixinhas</div>
+      </div>
+      <div class="tx-amount pos" style="font-size:19px;">${formatMoney(patrimonioTotal)}</div>
+    </div>`;
+  }
+
   html += `<div class="card">
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
       <div class="section-label" style="margin:0;">Saldo por banco</div>
       <button type="button" class="chip" id="editBancosBtn" style="margin:0;">Editar</button>
     </div>
-    ${BANCOS.map(b=>`<div class="row">
-      <div class="row-title">${b}</div>
-      <div class="tx-amount pos">${formatMoney(snapAtual ? (snapAtual.valores[b]||0) : 0)}</div>
-    </div>`).join('')}
+    ${BANCOS.map(b=>{
+      const recebidoRegistrado = receitasBancoMes(b, mesAtual);
+      const fontes = BANCO_FONTES[b] || {};
+      const origemTxt = [...(fontes.diarias||[]), ...(fontes.lojas||[])].join(' + ');
+      return `<div class="row" style="flex-direction:column; align-items:stretch; gap:2px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="row-title">${b}</div>
+          <div class="tx-amount pos">${formatMoney(snapAtual ? (snapAtual.valores[b]||0) : 0)}</div>
+        </div>
+        <div class="row-sub" style="margin:0 0 6px;">${origemTxt} · registrado no mês: ${formatMoney(recebidoRegistrado)}</div>
+      </div>`;
+    }).join('')}
   </div>`;
 
   html += `<div class="section-label">Meta de diárias este mês</div>`;
@@ -1482,6 +1727,35 @@ function bancosForm(){
     ${sheetActions('bancos')}`;
 }
 
+function shiftMonth(mesKey, delta){
+  const [y,m] = mesKey.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return d.toISOString().slice(0,7);
+}
+
+function monthNavHtml(mesKey, attr){
+  return `<div class="card" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;margin-bottom:14px;">
+    <button type="button" class="chip" data-monthnav="${attr}:prev" style="margin:0;">‹</button>
+    <div style="font-family:var(--font-display);font-weight:600;font-size:15px;text-transform:capitalize;">${mesLabel(mesKey)}</div>
+    <button type="button" class="chip" data-monthnav="${attr}:next" style="margin:0;" ${mesKey>=currentMonthKey()?'disabled':''}>›</button>
+  </div>`;
+}
+
+function financasResumoMes(mesKey){
+  const entradas = state.financas.filter(t=>(t.tipo==='diaria'||t.tipo==='venda') && (t.data||'').startsWith(mesKey)).reduce((a,t)=>a+t.valor,0);
+  const gastos = state.financas.filter(t=>t.tipo==='gasto' && (t.data||'').startsWith(mesKey)).reduce((a,t)=>a+t.valor,0);
+  return { entradas, gastos, saldo: entradas - gastos };
+}
+
+function categoriaBreakdownMes(mesKey){
+  const totals = {};
+  state.financas.filter(t=>t.tipo==='gasto' && (t.data||'').startsWith(mesKey)).forEach(t=>{
+    totals[t.categoria] = (totals[t.categoria]||0) + t.valor;
+  });
+  const labels = Object.keys(totals).sort((a,b)=>totals[b]-totals[a]);
+  return { labels, data: labels.map(l=>totals[l]) };
+}
+
 function categoriaBreakdown(period){
   const start = periodStartISO(period);
   const totals = {};
@@ -1509,23 +1783,43 @@ function evolucaoMensal(){
 }
 
 function relatoriosHtml(){
-  return `<div class="chip-row">
-    <button class="chip ${relatoriosPeriod==='semana'?'sel':''}" data-relperiod="semana">7 dias</button>
-    <button class="chip ${relatoriosPeriod==='mes'?'sel':''}" data-relperiod="mes">1 mês</button>
-  </div>
-  <div class="card">
-    <div class="section-label" style="margin-top:0;">Gastos por categoria</div>
+  const mesAtual = relatoriosMes;
+  const mesAnterior = shiftMonth(mesAtual, -1);
+  const finAtual = financasResumoMes(mesAtual);
+  const finAnterior = financasResumoMes(mesAnterior);
+  const pct = finAnterior.saldo !== 0 ? ((finAtual.saldo - finAnterior.saldo) / Math.abs(finAnterior.saldo)) * 100 : (finAtual.saldo !== 0 ? 100 : 0);
+  const houveMesAnterior = state.financas.some(t=>(t.data||'').startsWith(mesAnterior));
+
+  let html = monthNavHtml(mesAtual, 'relatorios');
+
+  html += `<div class="card">
+    <div class="section-label" style="margin-top:0;">Resumo de ${mesLabel(mesAtual)}</div>
+    <div class="fin-summary-row" style="margin-bottom:10px;">
+      <div><div class="slbl">Entradas</div><div class="tx-amount pos">${formatMoney(finAtual.entradas)}</div></div>
+      <div><div class="slbl">Gastos</div><div class="tx-amount neg">${formatMoney(finAtual.gastos)}</div></div>
+      <div><div class="slbl">Saldo</div><div class="tx-amount ${finAtual.saldo>=0?'pos':'neg'}">${formatMoney(finAtual.saldo)}</div></div>
+    </div>
+    ${houveMesAnterior
+      ? `<div style="font-size:12px;color:${pct>=0?'var(--financas)':'var(--danger)'};">${pct>=0?'↑':'↓'} ${Math.abs(pct).toFixed(0)}% vs ${mesLabel(mesAnterior)}</div>`
+      : `<div style="font-size:12px;color:var(--text-dim);">Sem dados de ${mesLabel(mesAnterior)} para comparar</div>`}
+  </div>`;
+
+  html += `<div class="card">
+    <div class="section-label" style="margin-top:0;">Gastos por categoria — ${mesLabel(mesAtual)}</div>
     <div style="position:relative; height:210px;"><canvas id="chartGastos"></canvas></div>
     <div id="gastosLegend"></div>
-  </div>
-  <div class="card">
-    <div class="section-label" style="margin-top:0;">Evolução mensal (saldo)</div>
+  </div>`;
+
+  html += `<div class="card">
+    <div class="section-label" style="margin-top:0;">Evolução (últimos 6 meses)</div>
     <div style="position:relative; height:170px;"><canvas id="chartEvolucao"></canvas></div>
   </div>`;
+
+  return html;
 }
 
 function renderCharts(){
-  const catData = categoriaBreakdown(relatoriosPeriod);
+  const catData = categoriaBreakdownMes(relatoriosMes);
   const totalGastos = catData.data.reduce((a,v)=>a+v,0);
 
   const ctx1 = document.getElementById('chartGastos');
@@ -2240,6 +2534,8 @@ async function startApp(){
   document.getElementById('dateLabel').textContent = new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long' });
   document.getElementById('content').innerHTML = `<div class="empty">Carregando seus dados…</div>`;
   await loadAll();
+  relatoriosMes = currentMonthKey();
+  controleMes = currentMonthKey();
   setActiveTab('inicio');
 }
 
