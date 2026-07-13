@@ -25,6 +25,7 @@
     --current:#22c55e;
     --danger:#ef4444;
     --warning:#f59e0b;
+    --info:#3b82f6;
     --font-display:'Fraunces', serif;
     --font-body:'Inter', sans-serif;
     --font-mono:'IBM Plex Mono', monospace;
@@ -387,6 +388,43 @@
     color:var(--text-dim);
     margin:4px 0 8px;
   }
+
+  .kpi-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    margin-bottom:16px;
+  }
+  .kpi-card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:16px;
+  }
+  .kpi-icon{
+    width:34px;height:34px;
+    border-radius:10px;
+    display:flex;align-items:center;justify-content:center;
+    margin-bottom:12px;
+  }
+  .kpi-icon svg{width:17px;height:17px;}
+  .kpi-value{
+    font-family:var(--font-mono);
+    font-size:20px;
+    font-weight:600;
+    color:var(--text);
+    line-height:1.2;
+  }
+  .kpi-label{
+    font-size:11px;
+    color:var(--text-dim);
+    margin-top:4px;
+  }
+  .kpi-delta{
+    font-size:11px;
+    font-weight:600;
+    margin-top:8px;
+  }
   .day-group-label{
     font-family:var(--font-display);
     font-size:14px;
@@ -443,6 +481,7 @@
     padding:0 3px;
   }
   .tab[data-tab="inicio"].active{background:var(--inicio);}
+  .tab[data-tab="controle"].active{background:var(--current);}
   .tab[data-tab="agenda"].active{background:var(--agenda);}
   .tab[data-tab="trabalho"].active{background:var(--trabalho);}
   .tab[data-tab="treino"].active{background:var(--treino);}
@@ -654,6 +693,7 @@
       overflow-y:auto;
     }
     .stats-grid{ grid-template-columns:repeat(4,minmax(0,1fr)); }
+    .kpi-grid{ grid-template-columns:repeat(4,minmax(0,1fr)); }
     .qa-grid{ grid-template-columns:repeat(4,minmax(0,1fr)); max-width:560px; }
     .overlay{ align-items:center; }
     .sheet{
@@ -716,6 +756,10 @@
     <button class="tab" data-tab="inicio" aria-label="Início">
       <svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
       <span class="tlabel">Início</span>
+    </button>
+    <button class="tab" data-tab="controle" aria-label="Controle">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      <span class="tlabel">Controle</span>
     </button>
     <button class="tab" data-tab="agenda" aria-label="Agenda">
       <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
@@ -781,8 +825,8 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script>
-const COLORS = { inicio:'#22c55e', agenda:'#22c55e', trabalho:'#22c55e', treino:'#22c55e', financas:'#22c55e' };
-const TITLES = { inicio:'Início', agenda:'Agenda', trabalho:'Trabalho', treino:'Treino', financas:'Finanças' };
+const COLORS = { inicio:'#22c55e', controle:'#22c55e', agenda:'#22c55e', trabalho:'#22c55e', treino:'#22c55e', financas:'#22c55e' };
+const TITLES = { inicio:'Início', controle:'Controle', agenda:'Agenda', trabalho:'Trabalho', treino:'Treino', financas:'Finanças' };
 const STORAGE_KEY = {
   agenda:'agenda-events', trabalho:'trabalho-tasks', treino:'treino-logs', financas:'financas-transactions',
   projetos:'trabalho-projetos', cronograma:'trabalho-cronograma', estudos:'trabalho-estudos', caixinhas:'financas-caixinhas',
@@ -1173,6 +1217,7 @@ function render(){
   const main = document.getElementById('content');
   updateBadges();
   if (currentTab === 'inicio') return renderInicio(main);
+  if (currentTab === 'controle') return renderControle(main);
   if (currentTab === 'agenda') return renderAgenda(main);
   if (currentTab === 'trabalho') return renderTrabalho(main);
   if (currentTab === 'treino') return renderTreino(main);
@@ -1816,6 +1861,171 @@ function relatoriosHtml(){
   </div>`;
 
   return html;
+}
+
+const KPI_ICONS = {
+  wallet: '<rect x="3" y="7" width="18" height="12" rx="2"/><path d="M3 10h18"/><circle cx="16" cy="14.5" r="1"/>',
+  'arrow-up': '<path d="M12 19V5"/><path d="M5 12l7-7 7 7"/>',
+  'arrow-down': '<path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/>',
+  activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'
+};
+
+function kpiCardHtml({ icon, color, value, label, pct, hasPrev, invert }){
+  const bom = invert ? pct <= 0 : pct >= 0;
+  const deltaColor = bom ? 'var(--financas)' : 'var(--danger)';
+  const arrow = pct >= 0 ? '↑' : '↓';
+  return `<div class="kpi-card">
+    <div class="kpi-icon" style="background:color-mix(in srgb, ${color} 18%, transparent); color:${color};">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${KPI_ICONS[icon]}</svg>
+    </div>
+    <div class="kpi-value">${value}</div>
+    <div class="kpi-label">${label}</div>
+    ${hasPrev
+      ? `<div class="kpi-delta" style="color:${deltaColor};">${arrow} ${Math.abs(pct).toFixed(0)}% vs mês anterior</div>`
+      : `<div class="kpi-delta" style="color:var(--text-dim);">Sem mês anterior</div>`}
+  </div>`;
+}
+
+function daysElapsedInMonth(mesKey){
+  const [y,m] = mesKey.split('-').map(Number);
+  const totalDias = new Date(y, m, 0).getDate();
+  return mesKey === currentMonthKey() ? new Date().getDate() : totalDias;
+}
+
+function habitosMesHtml(mesKey){
+  if (state.habitos.length === 0){
+    return `<div class="empty" style="padding:20px;margin:0;">Nenhum hábito cadastrado ainda. Crie em Treino → Hábitos.</div>`;
+  }
+  const dias = daysElapsedInMonth(mesKey);
+  return state.habitos.map(h=>{
+    const count = state.habitoLogs.filter(l=>l.habitoId===h.id && (l.date||'').startsWith(mesKey)).length;
+    const pct = dias > 0 ? Math.min(100, Math.round((count/dias)*100)) : 0;
+    return `<div class="row" style="flex-direction:column; align-items:stretch; gap:8px;">
+      <div style="display:flex; justify-content:space-between;">
+        <div class="row-title">${esc(h.nome)}</div>
+        <div class="row-sub" style="margin:0;">${count} de ${dias} dias</div>
+      </div>
+      <div class="goal-bar-track"><div class="goal-bar-fill" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function renderControle(main){
+  const mesAtual = controleMes;
+  const mesAnterior = shiftMonth(mesAtual, -1);
+  const finAtual = financasResumoMes(mesAtual);
+  const finAnterior = financasResumoMes(mesAnterior);
+  const houveMesAnterior = state.financas.some(t=>(t.data||'').startsWith(mesAnterior));
+
+  const pctSaldo = (houveMesAnterior && finAnterior.saldo !== 0) ? ((finAtual.saldo - finAnterior.saldo)/Math.abs(finAnterior.saldo))*100 : (finAtual.saldo!==0?100:0);
+  const pctEntradas = (houveMesAnterior && finAnterior.entradas !== 0) ? ((finAtual.entradas - finAnterior.entradas)/finAnterior.entradas)*100 : (finAtual.entradas!==0?100:0);
+  const pctGastos = (houveMesAnterior && finAnterior.gastos !== 0) ? ((finAtual.gastos - finAnterior.gastos)/finAnterior.gastos)*100 : (finAtual.gastos!==0?100:0);
+
+  const treinosMes = state.treino.filter(l=>(l.date||'').startsWith(mesAtual)).length;
+  const treinosMesAnterior = state.treino.filter(l=>(l.date||'').startsWith(mesAnterior)).length;
+  const pctTreinos = treinosMesAnterior !== 0 ? ((treinosMes - treinosMesAnterior)/treinosMesAnterior)*100 : (treinosMes!==0?100:0);
+
+  let html = monthNavHtml(mesAtual, 'controle');
+
+  html += `<div class="kpi-grid">
+    ${kpiCardHtml({ icon:'wallet', color:'var(--current)', value: formatMoney(finAtual.saldo), label:'Saldo do mês', pct: pctSaldo, hasPrev: houveMesAnterior })}
+    ${kpiCardHtml({ icon:'arrow-up', color:'var(--financas)', value: formatMoney(finAtual.entradas), label:'Total de entradas', pct: pctEntradas, hasPrev: houveMesAnterior })}
+    ${kpiCardHtml({ icon:'arrow-down', color:'var(--danger)', value: formatMoney(finAtual.gastos), label:'Total de gastos', pct: pctGastos, invert:true, hasPrev: houveMesAnterior })}
+    ${kpiCardHtml({ icon:'activity', color:'var(--info)', value: treinosMes, label:'Treinos no mês', pct: pctTreinos, hasPrev: treinosMesAnterior>0 })}
+  </div>`;
+
+  html += `<div class="card">
+    <div class="section-label" style="margin-top:0;">Evolução do saldo · últimos 6 meses</div>
+    <div style="position:relative;height:190px;"><canvas id="chartControleEvolucao"></canvas></div>
+  </div>`;
+
+  html += `<div class="card">
+    <div class="section-label" style="margin-top:0;">Hábitos em ${mesLabel(mesAtual)}</div>
+    ${habitosMesHtml(mesAtual)}
+  </div>`;
+
+  html += `<div class="card">
+    <div class="section-label" style="margin-top:0;">Gastos por categoria · ${mesLabel(mesAtual)}</div>
+    <div style="position:relative;height:200px;"><canvas id="chartControleCategoria"></canvas></div>
+    <div id="controleCategoriaLegend"></div>
+  </div>`;
+
+  main.innerHTML = html;
+
+  main.querySelectorAll('[data-monthnav]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const [alvo, dir] = btn.dataset.monthnav.split(':');
+      if (alvo === 'controle'){
+        const novo = shiftMonth(controleMes, dir==='next'?1:-1);
+        if (novo <= currentMonthKey()) controleMes = novo;
+      }
+      render();
+    });
+  });
+
+  renderControleCharts();
+}
+
+function renderControleCharts(){
+  const evo = evolucaoMensal();
+  const ctx1 = document.getElementById('chartControleEvolucao');
+  if (ctx1 && window.Chart){
+    if (window.__chartControleEvolucao) window.__chartControleEvolucao.destroy();
+    window.__chartControleEvolucao = new Chart(ctx1, {
+      type:'line',
+      data:{
+        labels: evo.labels,
+        datasets:[{
+          data: evo.data,
+          borderColor:'#22c55e',
+          backgroundColor:'rgba(34,197,94,0.14)',
+          fill:true,
+          tension:0.35,
+          pointRadius:3,
+          pointBackgroundColor:'#22c55e',
+          pointBorderColor:'#0a0d10',
+          pointBorderWidth:1.5
+        }]
+      },
+      options:{
+        maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{
+          x:{ ticks:{ color:'#8a939f', font:{ size:10 } }, grid:{ display:false } },
+          y:{ ticks:{ color:'#8a939f', font:{ size:10 } }, grid:{ color:'#262c33' } }
+        }
+      }
+    });
+  }
+
+  const catData = categoriaBreakdownMes(controleMes);
+  const totalGastos = catData.data.reduce((a,v)=>a+v,0);
+  const ctx2 = document.getElementById('chartControleCategoria');
+  if (ctx2 && window.Chart){
+    if (window.__chartControleCategoria) window.__chartControleCategoria.destroy();
+    if (catData.labels.length > 0){
+      window.__chartControleCategoria = new Chart(ctx2, {
+        type:'doughnut',
+        data:{ labels:catData.labels, datasets:[{ data:catData.data, backgroundColor: catData.labels.map((_,i)=>CHART_COLORS[i%CHART_COLORS.length]), borderWidth:0 }] },
+        options:{ plugins:{ legend:{ display:false }, tooltip:{ enabled:true } }, cutout:'68%', maintainAspectRatio:false }
+      });
+    }
+  }
+  const legendEl = document.getElementById('controleCategoriaLegend');
+  if (legendEl){
+    if (catData.labels.length === 0){
+      legendEl.innerHTML = `<div class="empty" style="padding:20px;margin-top:12px;">Nenhum gasto registrado neste mês.</div>`;
+    } else {
+      legendEl.innerHTML = catData.labels.map((l,i)=>{
+        const pct = totalGastos > 0 ? Math.round((catData.data[i]/totalGastos)*100) : 0;
+        return `<div class="row">
+          <div style="width:10px;height:10px;border-radius:50%;background:${CHART_COLORS[i%CHART_COLORS.length]};flex-shrink:0;"></div>
+          <div class="row-title" style="font-size:13px;">${esc(l)} <span style="color:var(--text-dim);">· ${pct}%</span></div>
+          <div class="tx-amount neg">${formatMoney(catData.data[i])}</div>
+        </div>`;
+      }).join('');
+    }
+  }
 }
 
 function renderCharts(){
