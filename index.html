@@ -438,6 +438,37 @@
     animation:cronoPulse 1.6s ease-in-out infinite;
     color:var(--current);
   }
+
+  .star-btn{
+    background:none;
+    border:none;
+    padding:4px;
+    cursor:pointer;
+    color:var(--text-dim);
+    display:flex;
+    flex-shrink:0;
+  }
+  .star-btn svg{ width:18px; height:18px; }
+  .star-btn.on{ color:var(--warning); }
+
+  .add-menu-item{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    width:100%;
+    text-align:left;
+    background:none;
+    border:none;
+    border-bottom:1px solid var(--line);
+    padding:14px 6px;
+    cursor:pointer;
+    color:var(--text);
+    font-family:var(--font-body);
+    font-size:14px;
+    font-weight:600;
+  }
+  .add-menu-item:last-child{ border-bottom:none; }
+  .add-menu-item .ami-icon{ width:22px; text-align:center; font-size:16px; }
   .day-group-label{
     font-family:var(--font-display);
     font-size:14px;
@@ -744,6 +775,10 @@
 
     .del-btn{ transition:background .12s ease, color .12s ease; }
     .del-btn:hover{ background:rgba(239,68,68,0.12); }
+
+    .add-menu-item{ transition:background .12s ease; }
+    .add-menu-item:hover{ background:var(--surface-2); }
+    .star-btn:hover{ color:var(--warning); }
   }
 </style>
 </head>
@@ -1249,41 +1284,66 @@ function habitStreak(habitId){
   return streak;
 }
 
-function computeStatusDia({ trabalhoMin, estudoMin, habitRatio, treinoHoje }){
-  let score = 0;
+function scoreDoDia({ trabalhoMin, estudoMin, habitRatio, treinoHoje }){
+  let pontos = 0;
   const focoMin = trabalhoMin + estudoMin;
-  if (focoMin >= 240) score += 2; else if (focoMin >= 90) score += 1;
-  if (habitRatio >= 0.8) score += 2; else if (habitRatio >= 0.5) score += 1;
-  if (treinoHoje) score += 1;
-  if (score >= 4) return { label:'Produtivo', color:'var(--financas)' };
-  if (score >= 2) return { label:'Médio', color:'var(--warning)' };
+  if (focoMin >= 240) pontos += 2; else if (focoMin >= 90) pontos += 1;
+  if (habitRatio >= 0.8) pontos += 2; else if (habitRatio >= 0.5) pontos += 1;
+  if (treinoHoje) pontos += 1;
+  return Math.round((pontos/5)*100);
+}
+
+function statusFromScore(score){
+  if (score >= 70) return { label:'Produtivo', color:'var(--financas)' };
+  if (score >= 35) return { label:'Médio', color:'var(--warning)' };
   return { label:'Baixo', color:'var(--danger)' };
 }
 
-function feedbackInteligenteHtml({ trabalhoMin, estudoMin, habitRatio, status }){
-  const msgs = [];
-  if (estudoMin === 0) msgs.push({ t:'Você ainda não estudou hoje.', c:'var(--warning)' });
-  else if (estudoMin < 30) msgs.push({ t:'Você estudou pouco hoje.', c:'var(--warning)' });
-  else if (estudoMin >= 90) msgs.push({ t:'Ótimo tempo de estudo hoje.', c:'var(--financas)' });
+function toggleFoco(taskId){
+  const t = state.trabalho.find(x=>x.id===taskId);
+  if (!t) return;
+  if (t.foco){
+    t.foco = false;
+  } else {
+    const atuais = state.trabalho.filter(x=>x.foco && !x.done).length;
+    if (atuais >= 3) return;
+    t.foco = true;
+  }
+  persist('trabalho');
+}
 
-  if (trabalhoMin >= 240) msgs.push({ t:'Boa consistência no trabalho hoje.', c:'var(--financas)' });
-  else if (trabalhoMin === 0) msgs.push({ t:'Nenhum tempo de trabalho registrado ainda.', c:'var(--text-dim)' });
-
-  if (habitRatio === 1 && state.habitos.length > 0) msgs.push({ t:'Todos os hábitos concluídos hoje. 🎉', c:'var(--financas)' });
-  else if (habitRatio < 0.5 && state.habitos.length > 0) msgs.push({ t:'Poucos hábitos concluídos até agora.', c:'var(--danger)' });
-
-  const picked = msgs.slice(0,2);
-  if (picked.length === 0) return '';
-  return `<div class="card" style="border-color:${status.color};">
+function feedbackInteligenteHtml({ trabalhoMin, estudoMin, habitRatio }){
+  let msg, sugestao, acao, cor;
+  if (estudoMin === 0){
+    msg = 'Você ainda não estudou hoje.'; sugestao = 'Iniciar 25 min de estudo agora'; acao = 'crono-estudo'; cor = 'var(--warning)';
+  } else if (habitRatio < 0.5 && state.habitos.length > 0){
+    msg = 'Poucos hábitos concluídos até agora.'; sugestao = 'Ver hábitos de hoje'; acao = 'scroll-habitos'; cor = 'var(--danger)';
+  } else if (estudoMin < 30){
+    msg = 'Você estudou pouco hoje.'; sugestao = 'Continuar mais 25 min de estudo'; acao = 'crono-estudo'; cor = 'var(--warning)';
+  } else if (trabalhoMin === 0){
+    msg = 'Nenhum tempo de trabalho registrado ainda.'; sugestao = 'Iniciar cronômetro de trabalho'; acao = 'crono-trabalho'; cor = 'var(--text-dim)';
+  } else if (habitRatio === 1 && state.habitos.length > 0){
+    msg = 'Todos os hábitos concluídos hoje. 🎉'; sugestao = null; cor = 'var(--financas)';
+  } else if (trabalhoMin >= 240){
+    msg = 'Boa consistência no trabalho hoje.'; sugestao = null; cor = 'var(--financas)';
+  } else {
+    msg = 'Dia dentro do esperado até agora.'; sugestao = null; cor = 'var(--text-dim)';
+  }
+  return `<div class="card" style="border-color:${cor};">
     <div class="section-label" style="margin-top:0;">Feedback do dia</div>
-    ${picked.map(m=>`<div class="row-sub" style="color:${m.c}; margin:0 0 4px;">${m.t}</div>`).join('')}
+    <div class="row-sub" style="color:${cor}; margin:0 0 ${sugestao?'10px':'0'}; font-size:13px;">${msg}</div>
+    ${sugestao ? `<button type="button" class="chip" data-feedback-acao="${acao}" style="margin:0;">${sugestao} →</button>` : ''}
   </div>`;
 }
 
 function focoDoDiaHtml(){
-  const tasks = [...state.trabalho].filter(t=>!t.done).sort((a,b)=>(PRIO_WEIGHT[a.priority]??1)-(PRIO_WEIGHT[b.priority]??1)).slice(0,3);
+  const tasks = state.trabalho.filter(t=>t.foco && !t.done);
   if (tasks.length === 0){
-    return `<div class="empty" style="padding:20px;margin:0;">Nenhuma tarefa pendente. Toque no + para adicionar.</div>`;
+    return `<div class="empty" style="padding:20px;margin:0;">
+      <span class="big">Nenhuma tarefa em foco</span>
+      Escolha até 3 tarefas prioritárias em Trabalho → Tarefas (toque na estrela ao lado da tarefa).
+      <div style="margin-top:12px;"><button type="button" class="chip" data-goto-tarefas style="margin:0;">Ir para Tarefas →</button></div>
+    </div>`;
   }
   return `<div class="card">${tasks.map(t=>`
     <div class="row">
@@ -1344,7 +1404,8 @@ function renderInicio(main){
   const habitosFeitos = state.habitos.filter(h=>isHabitoConcluidoHoje(h.id)).length;
   const habitRatio = totalHabitos > 0 ? habitosFeitos / totalHabitos : 0;
   const treinoHoje = state.treino.some(l=>l.date===hoje);
-  const status = computeStatusDia({ trabalhoMin, estudoMin, habitRatio, treinoHoje });
+  const score = scoreDoDia({ trabalhoMin, estudoMin, habitRatio, treinoHoje });
+  const status = statusFromScore(score);
 
   let html = quickActionsHtml();
 
@@ -1352,10 +1413,10 @@ function renderInicio(main){
     ${kpiCardHtml({ icon:'clock', color:'var(--current)', value: formatDuracao(trabalhoMin), label:'Trabalhadas hoje', note: trabalhoMin>0?'Registrado via cronômetro':'Nenhum registro ainda', noteColor:'var(--text-dim)' })}
     ${kpiCardHtml({ icon:'book', color:'var(--info)', value: formatDuracao(estudoMin), label:'Estudadas hoje', note: estudoMin>0?'Registrado via cronômetro':'Nenhum registro ainda', noteColor:'var(--text-dim)' })}
     ${kpiCardHtml({ icon:'check-circle', color:'var(--financas)', value: `${habitosFeitos}/${totalHabitos}`, label:'Hábitos concluídos', note: totalHabitos>0 ? `${Math.round(habitRatio*100)}% do dia` : 'Nenhum hábito criado', noteColor:'var(--text-dim)' })}
-    ${kpiCardHtml({ icon:'zap', color: status.color, value: status.label, label:'Status do dia', note: treinoHoje?'Com treino hoje':'Sem treino ainda', noteColor:'var(--text-dim)' })}
+    ${kpiCardHtml({ icon:'zap', color: status.color, value: `${score}%`, label:'Score do dia', note: status.label, noteColor: status.color, bar: score, barColor: status.color })}
   </div>`;
 
-  html += feedbackInteligenteHtml({ trabalhoMin, estudoMin, habitRatio, status });
+  html += feedbackInteligenteHtml({ trabalhoMin, estudoMin, habitRatio });
 
   html += `<div class="section-label">Foco do dia</div>`;
   html += focoDoDiaHtml();
@@ -1390,7 +1451,26 @@ function renderInicio(main){
     el.addEventListener('click', toggle);
     el.addEventListener('keydown', ev=>{ if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); toggle(); }});
   });
+
+  const gotoTarefas = main.querySelector('[data-goto-tarefas]');
+  if (gotoTarefas) gotoTarefas.addEventListener('click', ()=>{ trabalhoSubTab = 'tarefas'; setActiveTab('trabalho'); });
+
+  main.querySelectorAll('[data-feedback-acao]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const acao = btn.dataset.feedbackAcao;
+      if (acao === 'crono-estudo' || acao === 'crono-trabalho'){
+        const tipo = acao === 'crono-estudo' ? 'estudo' : 'trabalho';
+        if (!cronometro.running){ cronoSetTipo(tipo); cronoStart(); }
+        render();
+        requestAnimationFrame(()=>{ document.getElementById('cronoCard')?.scrollIntoView({ behavior:'smooth', block:'center' }); });
+      } else if (acao === 'scroll-habitos'){
+        const label = [...main.querySelectorAll('.section-label')].find(el=>el.textContent==='Hábitos de hoje');
+        if (label) label.scrollIntoView({ behavior:'smooth', block:'start' });
+      }
+    });
+  });
 }
+
 
 
 function weekDotsHtml(){
@@ -1473,6 +1553,9 @@ function renderTrabalho(main){
       el.addEventListener('click', toggle);
       el.addEventListener('keydown', ev=>{ if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); toggle(); }});
     });
+    main.querySelectorAll('[data-foco-toggle]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{ toggleFoco(btn.dataset.focoToggle); render(); });
+    });
   }
 
   if (trabalhoSubTab === 'projetos'){
@@ -1502,6 +1585,9 @@ function tarefasHtml(){
       </div>
       <div class="prio-dot prio-${t.priority||'media'}" title="Prioridade ${PRIO_LABEL[t.priority||'media']}"></div>
       <div class="row-title ${t.done?'done':''}">${esc(t.title)}</div>
+      <button type="button" class="star-btn ${t.foco?'on':''}" data-foco-toggle="${t.id}" title="${t.foco?'Remover do foco do dia':'Marcar como foco do dia'}" ${t.done?'disabled style="opacity:.3;"':''}>
+        <svg viewBox="0 0 24 24" fill="${t.foco?'currentColor':'none'}" stroke="currentColor" stroke-width="1.8"><path d="M12 2.5l2.9 6.3 6.6.7-5 4.7 1.4 6.9L12 17.8l-5.9 3.3 1.4-6.9-5-4.7 6.6-.7z"/></svg>
+      </button>
       <button class="del-btn" data-del="trabalho" data-id="${t.id}">✕</button>
     </div>`).join('')}</div>`;
 }
@@ -1972,7 +2058,7 @@ const KPI_ICONS = {
   zap: '<path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/>'
 };
 
-function kpiCardHtml({ icon, color, value, label, pct, hasPrev, invert, note, noteColor }){
+function kpiCardHtml({ icon, color, value, label, pct, hasPrev, invert, note, noteColor, bar, barColor }){
   let bottom;
   if (note !== undefined){
     bottom = `<div class="kpi-delta" style="color:${noteColor || 'var(--text-dim)'};">${note}</div>`;
@@ -1984,6 +2070,9 @@ function kpiCardHtml({ icon, color, value, label, pct, hasPrev, invert, note, no
       ? `<div class="kpi-delta" style="color:${deltaColor};">${arrow} ${Math.abs(pct).toFixed(0)}% vs mês anterior</div>`
       : `<div class="kpi-delta" style="color:var(--text-dim);">Sem mês anterior</div>`;
   }
+  const barHtml = bar !== undefined
+    ? `<div class="goal-bar-track" style="margin-top:8px;"><div class="goal-bar-fill" style="width:${bar}%; background:${barColor || color};"></div></div>`
+    : '';
   return `<div class="kpi-card">
     <div class="kpi-icon" style="background:color-mix(in srgb, ${color} 18%, transparent); color:${color};">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${KPI_ICONS[icon]}</svg>
@@ -1991,6 +2080,7 @@ function kpiCardHtml({ icon, color, value, label, pct, hasPrev, invert, note, no
     <div class="kpi-value">${value}</div>
     <div class="kpi-label">${label}</div>
     ${bottom}
+    ${barHtml}
   </div>`;
 }
 
@@ -2332,10 +2422,36 @@ document.getElementById('overlay').addEventListener('click', e=>{
   if (e.target.id === 'overlay') closeSheet();
 });
 
+function addMenuHtml(){
+  return `<h2>Adicionar</h2>
+    <div class="card" style="padding:4px;">
+      <button type="button" class="add-menu-item" data-menu="tarefa"><span class="ami-icon">📝</span> Nova tarefa</button>
+      <button type="button" class="add-menu-item" data-menu="habito"><span class="ami-icon">✅</span> Novo hábito</button>
+      <button type="button" class="add-menu-item" data-menu="treino"><span class="ami-icon">💪</span> Novo treino</button>
+      <button type="button" class="add-menu-item" data-menu="evento"><span class="ami-icon">📅</span> Novo evento na agenda</button>
+    </div>
+    <div class="sheet-actions"><button type="button" class="btn-cancel" id="cancelBtn" style="width:100%;">Cancelar</button></div>`;
+}
+
+function openAddMenu(){
+  const sheet = document.getElementById('sheet');
+  currentEditId = null;
+  sheet.innerHTML = addMenuHtml();
+  document.getElementById('cancelBtn').addEventListener('click', closeSheet);
+  const forms = { tarefa: trabalhoForm, habito: habitoForm, treino: treinoForm, evento: agendaForm };
+  sheet.querySelectorAll('[data-menu]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      sheet.innerHTML = forms[btn.dataset.menu]();
+      wireSheet();
+    });
+  });
+  openSheet();
+}
+
 function handleAddClick(){
   const sheet = document.getElementById('sheet');
   currentEditId = null;
-  if (currentTab === 'inicio'){ currentFinType = 'diaria'; sheet.innerHTML = financasForm(); }
+  if (currentTab === 'inicio' || currentTab === 'controle'){ openAddMenu(); return; }
   else if (currentTab === 'agenda') sheet.innerHTML = agendaForm();
   else if (currentTab === 'trabalho'){
     if (trabalhoSubTab === 'tarefas') sheet.innerHTML = trabalhoForm();
@@ -2343,7 +2459,9 @@ function handleAddClick(){
     else if (trabalhoSubTab === 'cronograma') sheet.innerHTML = cronogramaForm();
     else if (trabalhoSubTab === 'estudos') sheet.innerHTML = estudoForm();
   }
-  else if (currentTab === 'treino') sheet.innerHTML = treinoForm();
+  else if (currentTab === 'treino'){
+    sheet.innerHTML = treinoSubTab === 'habitos' ? habitoForm() : treinoForm();
+  }
   else if (currentTab === 'financas'){
     if (financasSubTab === 'mov'){ currentFinType = 'diaria'; sheet.innerHTML = financasForm(); }
     else if (financasSubTab === 'caixinhas'){ sheet.innerHTML = caixinhaForm(); }
@@ -2408,6 +2526,12 @@ function treinoForm(){
     <div class="field"><label for="f-tipo">Tipo de treino</label><input id="f-tipo" type="text" placeholder="Ex: Corrida, Musculação" maxlength="40"></div>
     <div class="field"><label for="f-duracao">Duração (minutos)</label><input id="f-duracao" type="number" min="1" max="600" placeholder="45"></div>
     ${sheetActions('treino')}`;
+}
+
+function habitoForm(){
+  return `<h2>Novo hábito</h2>
+    <div class="field"><label for="f-nome-habito">Nome do hábito</label><input id="f-nome-habito" type="text" maxlength="40" placeholder="Ex: Beber água, Ler, Dormir cedo"></div>
+    ${sheetActions('habitos')}`;
 }
 
 function caixinhaForm(){
@@ -2762,6 +2886,12 @@ function wireSheet(){
       if (!tipo) return;
       state.treino.push({ id: uid(), date: todayISO(), tipo, duracao });
       await persist('treino');
+    }
+    if (tab === 'habitos'){
+      const nome = document.getElementById('f-nome-habito').value.trim();
+      if (!nome) return;
+      state.habitos.push({ id: uid(), nome });
+      await persist('habitos');
     }
     if (tab === 'financas'){
       const valor = parseFloat(document.getElementById('f-valor').value) || 0;
