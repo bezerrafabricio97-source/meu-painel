@@ -425,6 +425,19 @@
     font-weight:600;
     margin-top:8px;
   }
+
+  .crono-active{
+    border-color:var(--current);
+    box-shadow:0 0 0 1px var(--current);
+  }
+  @keyframes cronoPulse{
+    0%,100%{ opacity:1; }
+    50%{ opacity:.55; }
+  }
+  .crono-pulse{
+    animation:cronoPulse 1.6s ease-in-out infinite;
+    color:var(--current);
+  }
   .day-group-label{
     font-family:var(--font-display);
     font-size:14px;
@@ -1038,14 +1051,14 @@ setInterval(updateCronoDisplay, 1000);
 
 function cronoWidgetHtml(){
   const runningEstudo = cronometro.tipo === 'estudo';
-  return `<div class="card" id="cronoCard">
+  return `<div class="card ${cronometro.running?'crono-active':''}" id="cronoCard">
     <div class="section-label" style="margin-top:0;">Cronômetro</div>
     <div class="toggle-group" id="crono-tipo-toggle" style="margin-bottom:14px;">
       <button type="button" data-val="estudo" class="${runningEstudo?'sel':''}" style="${runningEstudo?'background:var(--current);color:#0a0d10;':''}" ${cronometro.running?'disabled':''}>Estudo</button>
       <button type="button" data-val="trabalho" class="${!runningEstudo?'sel':''}" style="${!runningEstudo?'background:var(--current);color:#0a0d10;':''}" ${cronometro.running?'disabled':''}>Trabalho</button>
     </div>
     <div style="text-align:center; margin-bottom:16px;">
-      <div id="cronoDisplay" style="font-family:var(--font-mono); font-size:38px; font-weight:600; letter-spacing:.02em;">${cronoFormat(cronoElapsedMs())}</div>
+      <div id="cronoDisplay" class="${cronometro.running?'crono-pulse':''}" style="font-family:var(--font-mono); font-size:44px; font-weight:600; letter-spacing:.02em;">${cronoFormat(cronoElapsedMs())}</div>
     </div>
     <div class="sheet-actions" style="margin-top:0;">
       ${cronometro.running
@@ -1224,76 +1237,161 @@ function render(){
   if (currentTab === 'financas') return renderFinancas(main);
 }
 
+function habitStreak(habitId){
+  const logged = new Set(state.habitoLogs.filter(l=>l.habitoId===habitId).map(l=>l.date));
+  const cursor = new Date();
+  if (!logged.has(todayISO())) cursor.setDate(cursor.getDate()-1);
+  let streak = 0;
+  while (logged.has(cursor.toISOString().slice(0,10))){
+    streak++;
+    cursor.setDate(cursor.getDate()-1);
+  }
+  return streak;
+}
+
+function computeStatusDia({ trabalhoMin, estudoMin, habitRatio, treinoHoje }){
+  let score = 0;
+  const focoMin = trabalhoMin + estudoMin;
+  if (focoMin >= 240) score += 2; else if (focoMin >= 90) score += 1;
+  if (habitRatio >= 0.8) score += 2; else if (habitRatio >= 0.5) score += 1;
+  if (treinoHoje) score += 1;
+  if (score >= 4) return { label:'Produtivo', color:'var(--financas)' };
+  if (score >= 2) return { label:'Médio', color:'var(--warning)' };
+  return { label:'Baixo', color:'var(--danger)' };
+}
+
+function feedbackInteligenteHtml({ trabalhoMin, estudoMin, habitRatio, status }){
+  const msgs = [];
+  if (estudoMin === 0) msgs.push({ t:'Você ainda não estudou hoje.', c:'var(--warning)' });
+  else if (estudoMin < 30) msgs.push({ t:'Você estudou pouco hoje.', c:'var(--warning)' });
+  else if (estudoMin >= 90) msgs.push({ t:'Ótimo tempo de estudo hoje.', c:'var(--financas)' });
+
+  if (trabalhoMin >= 240) msgs.push({ t:'Boa consistência no trabalho hoje.', c:'var(--financas)' });
+  else if (trabalhoMin === 0) msgs.push({ t:'Nenhum tempo de trabalho registrado ainda.', c:'var(--text-dim)' });
+
+  if (habitRatio === 1 && state.habitos.length > 0) msgs.push({ t:'Todos os hábitos concluídos hoje. 🎉', c:'var(--financas)' });
+  else if (habitRatio < 0.5 && state.habitos.length > 0) msgs.push({ t:'Poucos hábitos concluídos até agora.', c:'var(--danger)' });
+
+  const picked = msgs.slice(0,2);
+  if (picked.length === 0) return '';
+  return `<div class="card" style="border-color:${status.color};">
+    <div class="section-label" style="margin-top:0;">Feedback do dia</div>
+    ${picked.map(m=>`<div class="row-sub" style="color:${m.c}; margin:0 0 4px;">${m.t}</div>`).join('')}
+  </div>`;
+}
+
+function focoDoDiaHtml(){
+  const tasks = [...state.trabalho].filter(t=>!t.done).sort((a,b)=>(PRIO_WEIGHT[a.priority]??1)-(PRIO_WEIGHT[b.priority]??1)).slice(0,3);
+  if (tasks.length === 0){
+    return `<div class="empty" style="padding:20px;margin:0;">Nenhuma tarefa pendente. Toque no + para adicionar.</div>`;
+  }
+  return `<div class="card">${tasks.map(t=>`
+    <div class="row">
+      <div class="checkbox" data-toggle="${t.id}" role="checkbox" aria-checked="false" tabindex="0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#14171d" stroke-width="3"><path d="M5 12l5 5L19 7"/></svg>
+      </div>
+      <div class="prio-dot prio-${t.priority||'media'}" title="Prioridade ${PRIO_LABEL[t.priority||'media']}"></div>
+      <div class="row-title">${esc(t.title)}</div>
+    </div>`).join('')}</div>`;
+}
+
+function habitosHojeHtml(){
+  if (state.habitos.length === 0){
+    return `<div class="empty" style="padding:20px;margin:0;">Nenhum hábito cadastrado ainda. Toque no + para criar um (ex: Água, Sono, Leitura, Estudo, Treino).</div>`;
+  }
+  return `<div class="card">${state.habitos.map(h=>{
+    const done = isHabitoConcluidoHoje(h.id);
+    const streak = habitStreak(h.id);
+    return `<div class="row">
+      <div class="checkbox ${done?'checked':''}" data-habito-toggle="${h.id}" role="checkbox" aria-checked="${done}" tabindex="0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#14171d" stroke-width="3"><path d="M5 12l5 5L19 7"/></svg>
+      </div>
+      <div class="row-title" style="flex:1;">${esc(h.nome)}</div>
+      ${streak > 0 ? `<div class="row-sub" style="margin:0;">🔥 ${streak}</div>` : ''}
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function agendaPorPeriodoHtml(){
+  const hoje = todayISO();
+  const eventos = state.agenda.filter(e=>e.date===hoje).sort((a,b)=>a.time.localeCompare(b.time));
+  if (eventos.length === 0){
+    return `<div class="empty" style="padding:20px;margin:0;">Nada marcado por hoje.</div>`;
+  }
+  const grupos = { 'Manhã':[], 'Tarde':[], 'Noite':[] };
+  eventos.forEach(e=>{
+    const h = parseInt((e.time||'0').split(':')[0], 10);
+    if (h < 12) grupos['Manhã'].push(e);
+    else if (h < 18) grupos['Tarde'].push(e);
+    else grupos['Noite'].push(e);
+  });
+  return Object.entries(grupos).filter(([,evs])=>evs.length>0).map(([nome,evs])=>`
+    <div class="day-group-label">${nome}</div>
+    <div class="card">${evs.map(e=>`
+      <div class="row">
+        <div class="row-time">${esc(e.time)}</div>
+        <div class="row-title">${esc(e.title)}</div>
+        <button class="del-btn" data-del="agenda" data-id="${e.id}">✕</button>
+      </div>`).join('')}</div>`).join('');
+}
+
 function renderInicio(main){
   const hoje = todayISO();
-  const tarefasPendentes = state.trabalho.filter(t=>!t.done).length;
-  const eventosHoje = state.agenda.filter(e=>e.date===hoje).sort((a,b)=>a.time.localeCompare(b.time));
-  const fin = computeFinancas();
-  const stats = computeDashboardStats(dashboardPeriod);
-  const trend = computeTrend(dashboardPeriod);
-  const spark = sparklineValues(dashboardPeriod === 'mes' ? 30 : 7);
-  const nowTime = new Date().toTimeString().slice(0,5);
-  const proximo = eventosHoje.find(e=>e.time >= nowTime);
+  const todayStats = computeDashboardStats('dia');
+  const trabalhoMin = todayStats.trabalhoPeriodo;
+  const estudoMin = todayStats.estudosPeriodo;
+  const totalHabitos = state.habitos.length;
+  const habitosFeitos = state.habitos.filter(h=>isHabitoConcluidoHoje(h.id)).length;
+  const habitRatio = totalHabitos > 0 ? habitosFeitos / totalHabitos : 0;
+  const treinoHoje = state.treino.some(l=>l.date===hoje);
+  const status = computeStatusDia({ trabalhoMin, estudoMin, habitRatio, treinoHoje });
 
   let html = quickActionsHtml();
 
+  html += `<div class="kpi-grid">
+    ${kpiCardHtml({ icon:'clock', color:'var(--current)', value: formatDuracao(trabalhoMin), label:'Trabalhadas hoje', note: trabalhoMin>0?'Registrado via cronômetro':'Nenhum registro ainda', noteColor:'var(--text-dim)' })}
+    ${kpiCardHtml({ icon:'book', color:'var(--info)', value: formatDuracao(estudoMin), label:'Estudadas hoje', note: estudoMin>0?'Registrado via cronômetro':'Nenhum registro ainda', noteColor:'var(--text-dim)' })}
+    ${kpiCardHtml({ icon:'check-circle', color:'var(--financas)', value: `${habitosFeitos}/${totalHabitos}`, label:'Hábitos concluídos', note: totalHabitos>0 ? `${Math.round(habitRatio*100)}% do dia` : 'Nenhum hábito criado', noteColor:'var(--text-dim)' })}
+    ${kpiCardHtml({ icon:'zap', color: status.color, value: status.label, label:'Status do dia', note: treinoHoje?'Com treino hoje':'Sem treino ainda', noteColor:'var(--text-dim)' })}
+  </div>`;
+
+  html += feedbackInteligenteHtml({ trabalhoMin, estudoMin, habitRatio, status });
+
+  html += `<div class="section-label">Foco do dia</div>`;
+  html += focoDoDiaHtml();
+
   html += cronoWidgetHtml();
 
-  html += `<div class="chip-row">
-    <button class="chip ${dashboardPeriod==='dia'?'sel':''}" data-period="dia">Dia</button>
-    <button class="chip ${dashboardPeriod==='semana'?'sel':''}" data-period="semana">7 dias</button>
-    <button class="chip ${dashboardPeriod==='mes'?'sel':''}" data-period="mes">1 mês</button>
-  </div>`;
+  html += `<div class="section-label">Hábitos de hoje</div>`;
+  html += habitosHojeHtml();
 
-  const trendUp = trend.pct >= 0;
-  html += `<div class="card">
-    <div class="section-label" style="margin-top:0;">Financeiro no período</div>
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
-      <div>
-        <div class="slbl">Saldo do período</div>
-        <div class="amount ${stats.saldoPeriodo>=0?'pos':'neg'}" style="font-size:26px;">${formatMoney(stats.saldoPeriodo)}</div>
-        <div style="font-size:12px; color:${trendUp?'var(--financas)':'var(--danger)'}; margin-top:2px;">${trendUp?'↑':'↓'} ${Math.abs(trend.pct).toFixed(0)}% vs período anterior</div>
-      </div>
-      ${sparklineSvg(spark)}
-    </div>
-    <div class="fin-summary-row">
-      <div><div class="slbl">Entradas</div><div class="tx-amount pos">${formatMoney(stats.finEntradas)}</div></div>
-      <div><div class="slbl">Gastos</div><div class="tx-amount neg">${formatMoney(stats.finGastos)}</div></div>
-    </div>
-  </div>`;
-
-  html += `<div class="stats-grid">
-    <div class="stat-card"><div class="snum" style="color:var(--current)">${tarefasPendentes}</div><div class="slbl">Tarefas pendentes</div></div>
-    <div class="stat-card"><div class="snum" style="color:var(--warning)">${formatMoney(fin.pendente)}</div><div class="slbl">A receber</div></div>
-    <div class="stat-card"><div class="snum" style="color:var(--current)">${stats.treinosPeriodo}</div><div class="slbl">Treinos no período</div></div>
-    <div class="stat-card"><div class="snum" style="color:var(--current)">${formatDuracao(stats.estudosPeriodo)}</div><div class="slbl">Estudo no período</div></div>
-    <div class="stat-card"><div class="snum" style="color:var(--current)">${formatDuracao(stats.trabalhoPeriodo)}</div><div class="slbl">Trabalho no período</div></div>
-  </div>`;
-
-  html += `<div class="section-label">Próximo compromisso</div>`;
-  if (proximo){
-    html += `<div class="card"><div class="row" style="border:none;padding:2px 0;">
-      <div class="row-time">${esc(proximo.time)}</div>
-      <div class="row-title">${esc(proximo.title)}</div>
-    </div></div>`;
-  } else {
-    html += `<div class="empty" style="padding:20px;margin-bottom:16px;">Nenhum compromisso restante hoje.</div>`;
-  }
-
-  html += `<div class="section-label">Últimos 7 dias de treino</div>`;
-  html += `<div class="card">${weekDotsHtml()}</div>`;
+  html += `<div class="section-label">Agenda de hoje</div>`;
+  html += agendaPorPeriodoHtml();
 
   main.innerHTML = html;
 
-  main.querySelectorAll('[data-period]').forEach(chip=>{
-    chip.addEventListener('click', ()=>{
-      dashboardPeriod = chip.dataset.period;
-      render();
-    });
-  });
   wireQuickActions(main);
   wireCronoWidget(main);
+  bindDeletes(main);
+
+  main.querySelectorAll('[data-toggle]').forEach(el=>{
+    const toggle = ()=>{
+      const item = state.trabalho.find(t=>t.id===el.dataset.toggle);
+      item.done = true;
+      persist('trabalho');
+      render();
+    };
+    el.addEventListener('click', toggle);
+    el.addEventListener('keydown', ev=>{ if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); toggle(); }});
+  });
+
+  main.querySelectorAll('[data-habito-toggle]').forEach(el=>{
+    const toggle = ()=>{ toggleHabitoHoje(el.dataset.habitoToggle); render(); };
+    el.addEventListener('click', toggle);
+    el.addEventListener('keydown', ev=>{ if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); toggle(); }});
+  });
 }
+
 
 function weekDotsHtml(){
   const labels = ['D','S','T','Q','Q','S','S'];
@@ -1867,22 +1965,32 @@ const KPI_ICONS = {
   wallet: '<rect x="3" y="7" width="18" height="12" rx="2"/><path d="M3 10h18"/><circle cx="16" cy="14.5" r="1"/>',
   'arrow-up': '<path d="M12 19V5"/><path d="M5 12l7-7 7 7"/>',
   'arrow-down': '<path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/>',
-  activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'
+  activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
+  book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+  'check-circle': '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9"/>',
+  zap: '<path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/>'
 };
 
-function kpiCardHtml({ icon, color, value, label, pct, hasPrev, invert }){
-  const bom = invert ? pct <= 0 : pct >= 0;
-  const deltaColor = bom ? 'var(--financas)' : 'var(--danger)';
-  const arrow = pct >= 0 ? '↑' : '↓';
+function kpiCardHtml({ icon, color, value, label, pct, hasPrev, invert, note, noteColor }){
+  let bottom;
+  if (note !== undefined){
+    bottom = `<div class="kpi-delta" style="color:${noteColor || 'var(--text-dim)'};">${note}</div>`;
+  } else {
+    const bom = invert ? pct <= 0 : pct >= 0;
+    const deltaColor = bom ? 'var(--financas)' : 'var(--danger)';
+    const arrow = pct >= 0 ? '↑' : '↓';
+    bottom = hasPrev
+      ? `<div class="kpi-delta" style="color:${deltaColor};">${arrow} ${Math.abs(pct).toFixed(0)}% vs mês anterior</div>`
+      : `<div class="kpi-delta" style="color:var(--text-dim);">Sem mês anterior</div>`;
+  }
   return `<div class="kpi-card">
     <div class="kpi-icon" style="background:color-mix(in srgb, ${color} 18%, transparent); color:${color};">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${KPI_ICONS[icon]}</svg>
     </div>
     <div class="kpi-value">${value}</div>
     <div class="kpi-label">${label}</div>
-    ${hasPrev
-      ? `<div class="kpi-delta" style="color:${deltaColor};">${arrow} ${Math.abs(pct).toFixed(0)}% vs mês anterior</div>`
-      : `<div class="kpi-delta" style="color:var(--text-dim);">Sem mês anterior</div>`}
+    ${bottom}
   </div>`;
 }
 
