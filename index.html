@@ -780,6 +780,64 @@
     .add-menu-item:hover{ background:var(--surface-2); }
     .star-btn:hover{ color:var(--warning); }
   }
+
+  /* ---- Backup / status de salvamento (adicionado) ---- */
+  .backup-row{
+    display:flex; gap:8px; padding:0 20px 14px;
+  }
+  .backup-btn{
+    flex:1;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    background:var(--surface-2);
+    border:1px solid var(--line);
+    color:var(--text-dim);
+    font-size:12px; font-weight:500;
+    padding:8px 6px;
+    border-radius:9px;
+    cursor:pointer;
+    transition:border-color .15s ease, color .15s ease;
+  }
+  .backup-btn:hover{ border-color:var(--current); color:var(--text); }
+  .backup-btn svg{ width:14px; height:14px; flex-shrink:0; }
+
+  #saveToast{
+    position:fixed;
+    left:50%;
+    bottom:96px;
+    transform:translate(-50%, 12px);
+    background:var(--surface-2);
+    border:1px solid var(--line);
+    color:var(--text);
+    font-size:12.5px;
+    font-weight:500;
+    padding:8px 14px;
+    border-radius:20px;
+    z-index:9999;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .18s ease, transform .18s ease;
+    box-shadow:0 6px 18px rgba(0,0,0,0.35);
+    white-space:nowrap;
+  }
+  #saveToast.show{ opacity:1; transform:translate(-50%, 0); }
+  #saveToast.err{ border-color:var(--danger); color:#fecaca; }
+
+  #storageWarning{
+    display:none;
+    margin:0 20px 14px;
+    padding:12px 14px;
+    border-radius:10px;
+    background:rgba(239,68,68,0.1);
+    border:1px solid var(--danger);
+    color:#fecaca;
+    font-size:12.5px;
+    line-height:1.5;
+  }
+
+  @media (min-width: 900px){
+    .backup-row{ padding:0 24px 16px; }
+    .sidebar .backup-row{ flex-direction:column; padding:12px 12px 0; }
+  }
 </style>
 </head>
 <body>
@@ -801,6 +859,17 @@
 <div class="phone app-hidden" id="phoneApp">
   <nav class="sidebar" id="sidebarNav">
     <div class="brand">Meu painel</div>
+    <div class="backup-row">
+      <button type="button" class="backup-btn" id="btnBackupExport" title="Baixar backup dos seus dados">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>
+        Backup
+      </button>
+      <button type="button" class="backup-btn" id="btnBackupImport" title="Restaurar um backup salvo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21V9M7 14l5-5 5 5"/><path d="M4 5h16"/></svg>
+        Restaurar
+      </button>
+    </div>
+    <input type="file" id="backupFileInput" accept="application/json" style="display:none;">
     <button class="tab" data-tab="inicio" aria-label="Início">
       <svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
       <span class="tlabel">Início</span>
@@ -838,6 +907,10 @@
     <button class="fab-desktop" id="fabBtnDesktop" aria-label="Adicionar">+</button>
   </header>
 
+  <div id="storageWarning">
+    ⚠️ Seu navegador está bloqueando o salvamento local neste site. Seus dados não serão mantidos ao sair. Verifique as configurações de cookies/dados do site (não use aba anônima) ou use o botão <strong>Backup</strong> para salvar um arquivo manualmente.
+  </div>
+
   <main id="content"></main>
 
   <nav class="tabbar">
@@ -869,6 +942,8 @@
   <div class="overlay" id="overlay">
     <div class="sheet" id="sheet"></div>
   </div>
+
+  <div id="saveToast"></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
@@ -980,6 +1055,39 @@ function setActiveTab(tab){
 
 const LS_PREFIX = 'meu-painel:';
 
+/* ---- Diagnóstico de armazenamento (adicionado) ----
+   Antes o app salvava em localStorage silenciosamente: se o navegador
+   bloqueasse o armazenamento (aba anônima, extensão de privacidade,
+   configuração "limpar dados ao fechar", etc.) o erro só aparecia no
+   console e o usuário nunca ficava sabendo que nada estava sendo salvo.
+   Agora isso fica visível. */
+let storageOk = true;
+
+function checkStorageAvailable(){
+  try{
+    const testKey = LS_PREFIX + '__teste__';
+    localStorage.setItem(testKey, '1');
+    localStorage.removeItem(testKey);
+    storageOk = true;
+  }catch(e){
+    storageOk = false;
+  }
+  const warn = document.getElementById('storageWarning');
+  if (warn) warn.style.display = storageOk ? 'none' : 'block';
+  return storageOk;
+}
+
+let toastTimer = null;
+function showToast(msg, isError){
+  const el = document.getElementById('saveToast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.toggle('err', !!isError);
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ el.classList.remove('show'); }, isError ? 3200 : 1100);
+}
+
 async function loadAll(){
   for (const tab of Object.keys(STORAGE_KEY)){
     try{
@@ -993,20 +1101,78 @@ async function loadAll(){
     const rawCrono = localStorage.getItem(LS_PREFIX + 'cronometro-estado');
     if (rawCrono) cronometro = JSON.parse(rawCrono);
   }catch(e){}
+  checkStorageAvailable();
 }
 
 async function persist(tab){
   try{
     localStorage.setItem(LS_PREFIX + STORAGE_KEY[tab], JSON.stringify(state[tab]));
+    storageOk = true;
+    const warn = document.getElementById('storageWarning');
+    if (warn) warn.style.display = 'none';
+    showToast('✓ Salvo');
   }catch(e){
     console.error('Falha ao salvar', tab, e);
+    storageOk = false;
+    const warn = document.getElementById('storageWarning');
+    if (warn) warn.style.display = 'block';
+    showToast('✗ Não foi possível salvar. Use o botão Backup.', true);
   }
 }
 
 async function persistCronometro(){
   try{
     localStorage.setItem(LS_PREFIX + 'cronometro-estado', JSON.stringify(cronometro));
-  }catch(e){}
+  }catch(e){
+    console.error('Falha ao salvar cronômetro', e);
+  }
+}
+
+/* ---- Backup manual (adicionado) ----
+   Serve como rede de segurança independente do localStorage: o usuário
+   pode baixar um arquivo com todos os dados e, se algo apagar o
+   localStorage do navegador, restaurar tudo a partir desse arquivo. */
+function exportBackup(){
+  try{
+    const payload = { app:'meu-painel', versao:1, exportadoEm:new Date().toISOString(), state, cronometro };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const hoje = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = `meu-painel-backup-${hoje}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('✓ Backup baixado');
+  }catch(e){
+    console.error('Falha ao exportar backup', e);
+    showToast('✗ Não foi possível gerar o backup', true);
+  }
+}
+
+async function importBackupFile(file){
+  if (!file) return;
+  try{
+    const text = await file.text();
+    const payload = JSON.parse(text);
+    const incoming = payload && payload.state ? payload.state : payload;
+    if (!incoming || typeof incoming !== 'object') throw new Error('Arquivo inválido');
+    const ok = confirm('Isso vai substituir os dados atuais do app pelos dados desse backup. Continuar?');
+    if (!ok) return;
+    Object.keys(STORAGE_KEY).forEach(tab=>{
+      if (Array.isArray(incoming[tab])) state[tab] = incoming[tab];
+    });
+    if (payload && payload.cronometro) cronometro = payload.cronometro;
+    for (const tab of Object.keys(STORAGE_KEY)) await persist(tab);
+    await persistCronometro();
+    showToast('✓ Backup restaurado');
+    render();
+  }catch(e){
+    console.error('Falha ao importar backup', e);
+    showToast('✗ Arquivo de backup inválido', true);
+  }
 }
 
 function esc(str){
@@ -2474,6 +2640,19 @@ function handleAddClick(){
 document.getElementById('fabBtn').addEventListener('click', handleAddClick);
 const fabBtnDesktop = document.getElementById('fabBtnDesktop');
 if (fabBtnDesktop) fabBtnDesktop.addEventListener('click', handleAddClick);
+
+const btnBackupExport = document.getElementById('btnBackupExport');
+if (btnBackupExport) btnBackupExport.addEventListener('click', exportBackup);
+const btnBackupImport = document.getElementById('btnBackupImport');
+const backupFileInput = document.getElementById('backupFileInput');
+if (btnBackupImport && backupFileInput){
+  btnBackupImport.addEventListener('click', ()=> backupFileInput.click());
+  backupFileInput.addEventListener('change', (e)=>{
+    const file = e.target.files && e.target.files[0];
+    importBackupFile(file);
+    backupFileInput.value = '';
+  });
+}
 
 
 function agendaForm(){
