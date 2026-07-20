@@ -920,7 +920,7 @@ const STORAGE_KEY = {
   agenda:'agenda-events', trabalho:'trabalho-tasks', treino:'treino-logs', financas:'financas-transactions',
   projetos:'trabalho-projetos', cronograma:'trabalho-cronograma', estudos:'trabalho-estudos', caixinhas:'financas-caixinhas',
   bancos:'financas-bancos', trabalhoSessoes:'trabalho-sessoes', habitos:'vida-habitos', habitoLogs:'vida-habito-logs',
-  caixaDiario:'caixa-diario-lancamentos'
+  caixaDiario:'caixa-diario-lancamentos', tempoDiario:'tempo-diario-registros'
 };
 
 const DIARIA_LOCAIS = { 'Villa Kaboom': 90, 'Mágico Festas': 80 };
@@ -949,9 +949,11 @@ const CAIXINHA_TEMPLATES = {
   ]
 };
 const DIAS_SEMANA = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
-const SUBTAB_LABELS = { tarefas:'Tarefas', projetos:'Projetos', cronograma:'Cronograma', estudos:'Estudos' };
+const SUBTAB_LABELS = { tarefas:'Tarefas', projetos:'Projetos', cronograma:'Cronograma', estudos:'Estudos', tempo:'Tempo' };
 
-let state = { agenda:[], trabalho:[], treino:[], financas:[], projetos:[], cronograma:[], estudos:[], caixinhas:[], bancos:[], trabalhoSessoes:[], habitos:[], habitoLogs:[], caixaDiario:[] };
+let state = { agenda:[], trabalho:[], treino:[], financas:[], projetos:[], cronograma:[], estudos:[], caixinhas:[], bancos:[], trabalhoSessoes:[], habitos:[], habitoLogs:[], caixaDiario:[], tempoDiario:[] };
+const TEMPO_PROJETOS = ['Amazon','Shopee','T11','Onak','Casa'];
+const TEMPO_CORES = { Amazon:'#f59e0b', Shopee:'#f97316', T11:'#22c55e', Onak:'#3b82f6', Casa:'#a855f7' };
 let currentTab = 'inicio';
 let trabalhoSubTab = 'tarefas';
 let financasSubTab = 'diario';
@@ -1613,6 +1615,7 @@ function subTabChipsHtml(){
     <button class="chip ${trabalhoSubTab==='projetos'?'sel':''}" data-subtab="projetos">Projetos</button>
     <button class="chip ${trabalhoSubTab==='cronograma'?'sel':''}" data-subtab="cronograma">Cronograma</button>
     <button class="chip ${trabalhoSubTab==='estudos'?'sel':''}" data-subtab="estudos">Estudos</button>
+    <button class="chip ${trabalhoSubTab==='tempo'?'sel':''}" data-subtab="tempo">Tempo</button>
   </div>`;
 }
 
@@ -1623,6 +1626,7 @@ function renderTrabalho(main){
   else if (trabalhoSubTab === 'projetos') inner = projetosHtml();
   else if (trabalhoSubTab === 'cronograma') inner = cronogramaHtml();
   else if (trabalhoSubTab === 'estudos') inner = estudosHtml();
+  else if (trabalhoSubTab === 'tempo') inner = tempoHtml();
 
   main.innerHTML = subTabChipsHtml() + inner;
   bindDeletes(main);
@@ -1660,6 +1664,146 @@ function renderTrabalho(main){
       });
     });
   }
+
+  if (trabalhoSubTab === 'tempo'){
+    const inputs = main.querySelectorAll('.tempo-input');
+    const atualizarPreview = ()=>{
+      const totalEl = document.getElementById('tempoTotalHoje');
+      let total = 0;
+      const valores = {};
+      inputs.forEach(inp=>{
+        const v = parseFloat(inp.value) || 0;
+        valores[inp.dataset.projeto] = v;
+        total += v;
+      });
+      if (totalEl) totalEl.textContent = formatHoras(total);
+      TEMPO_PROJETOS.forEach(p=>{
+        const barEl = main.querySelector(`[data-tempo-bar="${p}"]`);
+        const pctEl = main.querySelector(`[data-tempo-pct="${p}"]`);
+        const pct = total > 0 ? (valores[p] / total * 100) : 0;
+        if (barEl) barEl.style.width = pct + '%';
+        if (pctEl) pctEl.textContent = (total > 0 ? Math.round(pct) : 0) + '%';
+      });
+    };
+    inputs.forEach(inp=> inp.addEventListener('input', atualizarPreview));
+
+    const btnSalvarTempo = document.getElementById('btnSalvarTempo');
+    if (btnSalvarTempo) btnSalvarTempo.addEventListener('click', async ()=>{
+      const horas = {};
+      let total = 0;
+      inputs.forEach(inp=>{
+        const v = parseFloat(inp.value) || 0;
+        horas[inp.dataset.projeto] = v;
+        total += v;
+      });
+      if (total <= 0){ showToast('Preencha ao menos um projeto', true); return; }
+      const hoje = todayISO();
+      let registro = state.tempoDiario.find(r=>r.data === hoje);
+      if (registro) registro.horas = horas;
+      else state.tempoDiario.push({ id: uid(), data: hoje, horas });
+      await persist('tempoDiario');
+      render();
+    });
+  }
+}
+
+function formatHoras(h){
+  const val = Math.round(h * 10) / 10;
+  return (val % 1 === 0 ? val.toFixed(0) : val.toFixed(1).replace('.', ',')) + 'h';
+}
+
+function startOfWeekISO(dataStr){
+  const d = new Date(dataStr + 'T00:00:00');
+  const diaSemana = d.getDay(); // 0=domingo
+  const offset = diaSemana === 0 ? 6 : diaSemana - 1; // dias desde segunda
+  d.setDate(d.getDate() - offset);
+  return d.toISOString().slice(0,10);
+}
+
+function tempoTotaisSemana(){
+  const inicioSemana = startOfWeekISO(todayISO());
+  const totais = {};
+  TEMPO_PROJETOS.forEach(p=> totais[p] = 0);
+  state.tempoDiario.forEach(reg=>{
+    if (reg.data >= inicioSemana){
+      TEMPO_PROJETOS.forEach(p=>{ totais[p] += (reg.horas && reg.horas[p]) || 0; });
+    }
+  });
+  return totais;
+}
+
+function tempoHtml(){
+  const hoje = todayISO();
+  const registroHoje = state.tempoDiario.find(r=>r.data === hoje);
+  const valoresHoje = {};
+  TEMPO_PROJETOS.forEach(p=> valoresHoje[p] = (registroHoje && registroHoje.horas && registroHoje.horas[p]) || 0);
+  const totalHoje = TEMPO_PROJETOS.reduce((acc,p)=> acc + valoresHoje[p], 0);
+
+  let html = `<div class="row-sub" style="margin:2px 2px 8px;">Registro do dia</div>
+  <div class="card" style="padding:14px;">
+    ${TEMPO_PROJETOS.map(p=>{
+      const pct = totalHoje > 0 ? Math.round(valoresHoje[p]/totalHoje*100) : 0;
+      return `<div style="margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:56px;font-size:13.5px;color:var(--text);">${esc(p)}</div>
+          <input class="tempo-input" data-projeto="${p}" type="number" step="0.5" min="0" placeholder="0"
+            value="${valoresHoje[p] || ''}"
+            style="width:64px;background:var(--surface-2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:6px 8px;font-family:var(--font-mono);text-align:center;">
+          <span style="font-size:12px;color:var(--text-dim);">h</span>
+          <div style="flex:1;height:6px;border-radius:4px;background:var(--surface-2);overflow:hidden;">
+            <div data-tempo-bar="${p}" style="height:100%;width:${pct}%;background:${TEMPO_CORES[p]};transition:width .15s ease;"></div>
+          </div>
+          <div data-tempo-pct="${p}" style="width:34px;text-align:right;font-size:12px;color:var(--text-dim);">${pct}%</div>
+        </div>
+      </div>`;
+    }).join('')}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding-top:12px;border-top:1px solid var(--line);">
+      <span style="font-size:13px;color:var(--text-dim);">Total do dia</span>
+      <span id="tempoTotalHoje" style="font-family:var(--font-mono);font-size:20px;font-weight:600;">${formatHoras(totalHoje)}</span>
+    </div>
+    <button type="button" id="btnSalvarTempo" class="btn-save" style="width:100%;margin-top:14px;padding:13px;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;">Salvar registro do dia</button>
+  </div>`;
+
+  const totaisSemana = tempoTotaisSemana();
+  const totalSemana = TEMPO_PROJETOS.reduce((acc,p)=> acc + totaisSemana[p], 0);
+  const maiorFoco = TEMPO_PROJETOS.reduce((a,b)=> totaisSemana[b] > totaisSemana[a] ? b : a, TEMPO_PROJETOS[0]);
+  const negligenciado = TEMPO_PROJETOS.reduce((a,b)=> totaisSemana[b] < totaisSemana[a] ? b : a, TEMPO_PROJETOS[0]);
+
+  html += `<div class="row-sub" style="margin:18px 2px 8px;">Dashboard semanal</div>`;
+
+  if (totalSemana === 0){
+    html += `<div class="empty"><span class="big">Sem registros essa semana</span>Preencha o registro do dia pra começar a comparar.</div>`;
+  } else {
+    html += `<div class="card" style="padding:14px;">
+      ${TEMPO_PROJETOS.slice().sort((a,b)=>totaisSemana[b]-totaisSemana[a]).map(p=>{
+        const pct = totalSemana > 0 ? Math.round(totaisSemana[p]/totalSemana*100) : 0;
+        return `<div style="margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+            <span>${esc(p)}</span><span style="color:var(--text-dim);">${formatHoras(totaisSemana[p])} · ${pct}%</span>
+          </div>
+          <div style="height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:${TEMPO_CORES[p]};"></div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="card" style="padding:14px;margin-top:10px;display:flex;gap:12px;">
+      <div style="flex:1;">
+        <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">🔥 Mais foco</div>
+        <div style="font-weight:600;font-size:15px;">${esc(maiorFoco)}</div>
+        <div style="font-size:12px;color:var(--text-dim);">${formatHoras(totaisSemana[maiorFoco])} essa semana</div>
+      </div>
+      <div style="width:1px;background:var(--line);"></div>
+      <div style="flex:1;">
+        <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">⚠️ Negligenciado</div>
+        <div style="font-weight:600;font-size:15px;">${esc(negligenciado)}</div>
+        <div style="font-size:12px;color:var(--text-dim);">${formatHoras(totaisSemana[negligenciado])} essa semana</div>
+      </div>
+    </div>`;
+  }
+
+  return html;
 }
 
 function tarefasHtml(){
@@ -2668,6 +2812,7 @@ function handleAddClick(){
     else if (trabalhoSubTab === 'projetos') sheet.innerHTML = projetoForm();
     else if (trabalhoSubTab === 'cronograma') sheet.innerHTML = cronogramaForm();
     else if (trabalhoSubTab === 'estudos') sheet.innerHTML = estudoForm();
+    else if (trabalhoSubTab === 'tempo') return;
   }
   else if (currentTab === 'treino'){
     sheet.innerHTML = treinoSubTab === 'habitos' ? habitoForm() : treinoForm();
