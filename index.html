@@ -920,7 +920,7 @@ const STORAGE_KEY = {
   agenda:'agenda-events', trabalho:'trabalho-tasks', treino:'treino-logs', financas:'financas-transactions',
   projetos:'trabalho-projetos', cronograma:'trabalho-cronograma', estudos:'trabalho-estudos', caixinhas:'financas-caixinhas',
   bancos:'financas-bancos', trabalhoSessoes:'trabalho-sessoes', habitos:'vida-habitos', habitoLogs:'vida-habito-logs',
-  caixaDiario:'caixa-diario-lancamentos', tempoDiario:'tempo-diario-registros'
+  caixaDiario:'caixa-diario-lancamentos', tempoDiario:'tempo-diario-registros', revisaoSemanal:'revisao-semanal-notas'
 };
 
 const DIARIA_LOCAIS = { 'Villa Kaboom': 90, 'Mágico Festas': 80 };
@@ -951,11 +951,15 @@ const CAIXINHA_TEMPLATES = {
 const DIAS_SEMANA = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
 const SUBTAB_LABELS = { tarefas:'Tarefas', projetos:'Projetos', cronograma:'Cronograma', estudos:'Estudos', tempo:'Tempo' };
 
-let state = { agenda:[], trabalho:[], treino:[], financas:[], projetos:[], cronograma:[], estudos:[], caixinhas:[], bancos:[], trabalhoSessoes:[], habitos:[], habitoLogs:[], caixaDiario:[], tempoDiario:[] };
+let state = { agenda:[], trabalho:[], treino:[], financas:[], projetos:[], cronograma:[], estudos:[], caixinhas:[], bancos:[], trabalhoSessoes:[], habitos:[], habitoLogs:[], caixaDiario:[], tempoDiario:[], revisaoSemanal:[] };
 const TEMPO_PROJETOS = ['Amazon','Shopee','T11','Onak','Casa'];
 const TEMPO_CORES = { Amazon:'#f59e0b', Shopee:'#f97316', T11:'#22c55e', Onak:'#3b82f6', Casa:'#a855f7' };
 let currentTab = 'inicio';
 let trabalhoSubTab = 'tarefas';
+let controleSubTab = 'mensal';
+let tarefasFiltroArea = 'todas';
+const AREA_TAGS = ['Amazon','Shopee','T11','Onak','Estudo','IA','Vida'];
+const AREA_CORES = { Amazon:'#f59e0b', Shopee:'#f97316', T11:'#22c55e', Onak:'#3b82f6', Estudo:'#eab308', IA:'#ec4899', Vida:'#94a3b8' };
 let financasSubTab = 'diario';
 let financasFilter = 'todos';
 let currentFinType = 'diaria';
@@ -1489,6 +1493,30 @@ function agendaPorPeriodoHtml(){
       </div>`).join('')}</div>`).join('');
 }
 
+const ROTINA_BLOCKS = [
+  { periodo:'Manhã', horario:'08:00–12:00', inicioH:8, fimH:12, foco:'Renda ativa', detalhe:'Amazon, Shopee e T11 — execução e pedidos' },
+  { periodo:'Tarde', horario:'13:00–18:00', inicioH:13, fimH:18, foco:'Onak', detalhe:'Projeto principal — consultoria de nutrição' },
+  { periodo:'Estudo diário', horario:'18:00–19:00', inicioH:18, fimH:19, foco:'Nutrição + Marketing', detalhe:'Bloco fixo de estudo (ajuste o horário se quiser)' },
+  { periodo:'Noite', horario:'19:30–22:00', inicioH:19, fimH:23, foco:'Descanso / Concurso', detalhe:'Alternar entre descansar e revisar leve pro concurso' },
+];
+
+function rotinaDoDiaHtml(){
+  const horaAtual = new Date().getHours();
+  return `<div class="card">${ROTINA_BLOCKS.map(b=>{
+    const ativo = horaAtual >= b.inicioH && horaAtual < b.fimH;
+    return `<div class="row" style="align-items:flex-start;${ativo?'background:var(--surface-2);border-radius:10px;padding-left:8px;padding-right:8px;':''}">
+      <div style="flex:1;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span class="row-title">${esc(b.periodo)}</span>
+          ${ativo ? `<span style="font-size:10px;font-weight:700;color:var(--current);background:var(--current)22;padding:2px 8px;border-radius:20px;">AGORA</span>` : ''}
+        </div>
+        <div style="font-size:12.5px;color:var(--text-dim);margin-top:2px;">${esc(b.horario)} · ${esc(b.foco)}</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">${esc(b.detalhe)}</div>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
 function renderInicio(main){
   const hoje = todayISO();
   const todayStats = computeDashboardStats('dia');
@@ -1502,6 +1530,9 @@ function renderInicio(main){
   const status = statusFromScore(score);
 
   let html = quickActionsHtml();
+
+  html += `<div class="section-label" style="margin-top:0;">Rotina do dia</div>`;
+  html += rotinaDoDiaHtml();
 
   html += `<div class="kpi-grid">
     ${kpiCardHtml({ icon:'clock', color:'var(--current)', value: formatDuracao(trabalhoMin), label:'Trabalhadas hoje', note: trabalhoMin>0?'Registrado via cronômetro':'Nenhum registro ainda', noteColor:'var(--text-dim)' })}
@@ -1639,6 +1670,12 @@ function renderTrabalho(main){
   });
 
   if (trabalhoSubTab === 'tarefas'){
+    main.querySelectorAll('[data-areafiltro]').forEach(chip=>{
+      chip.addEventListener('click', ()=>{
+        tarefasFiltroArea = chip.dataset.areafiltro;
+        render();
+      });
+    });
     main.querySelectorAll('[data-toggle]').forEach(el=>{
       const toggle = ()=>{
         const item = state.trabalho.find(t=>t.id===el.dataset.toggle);
@@ -1807,19 +1844,28 @@ function tempoHtml(){
 }
 
 function tarefasHtml(){
-  const tasks = [...state.trabalho].sort((a,b)=>{
-    if (a.done !== b.done) return a.done ? 1 : -1;
-    return (PRIO_WEIGHT[a.priority]??1) - (PRIO_WEIGHT[b.priority]??1);
-  });
+  const tasks = [...state.trabalho]
+    .filter(t=> tarefasFiltroArea === 'todas' || t.area === tarefasFiltroArea)
+    .sort((a,b)=>{
+      if (a.done !== b.done) return a.done ? 1 : -1;
+      return (PRIO_WEIGHT[a.priority]??1) - (PRIO_WEIGHT[b.priority]??1);
+    });
+
+  let html = `<div class="chip-row" style="margin-bottom:10px;">
+    <button class="chip ${tarefasFiltroArea==='todas'?'sel':''}" data-areafiltro="todas">Todas</button>
+    ${AREA_TAGS.map(a=>`<button class="chip ${tarefasFiltroArea===a?'sel':''}" data-areafiltro="${a}">${a}</button>`).join('')}
+  </div>`;
+
   if (tasks.length === 0){
-    return `<div class="empty"><span class="big">Nenhuma tarefa por aqui</span>Toque no + para adicionar uma tarefa.</div>`;
+    return html + `<div class="empty"><span class="big">Nenhuma tarefa por aqui</span>Toque no + para adicionar uma tarefa.</div>`;
   }
-  return `<div class="card">${tasks.map(t=>`
+  return html + `<div class="card">${tasks.map(t=>`
     <div class="row">
       <div class="checkbox ${t.done?'checked':''}" data-toggle="${t.id}" role="checkbox" aria-checked="${t.done}" tabindex="0">
         <svg viewBox="0 0 24 24" fill="none" stroke="#14171d" stroke-width="3"><path d="M5 12l5 5L19 7"/></svg>
       </div>
       <div class="prio-dot prio-${t.priority||'media'}" title="Prioridade ${PRIO_LABEL[t.priority||'media']}"></div>
+      ${t.area ? `<span style="font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:20px;background:${AREA_CORES[t.area]||'var(--surface-2)'}22;color:${AREA_CORES[t.area]||'var(--text-dim)'};margin-right:6px;white-space:nowrap;">${esc(t.area)}</span>` : ''}
       <div class="row-title ${t.done?'done':''}">${esc(t.title)}</div>
       <button type="button" class="star-btn ${t.foco?'on':''}" data-foco-toggle="${t.id}" title="${t.foco?'Remover do foco do dia':'Marcar como foco do dia'}" ${t.done?'disabled style="opacity:.3;"':''}>
         <svg viewBox="0 0 24 24" fill="${t.foco?'currentColor':'none'}" stroke="currentColor" stroke-width="1.8"><path d="M12 2.5l2.9 6.3 6.6.7-5 4.7 1.4 6.9L12 17.8l-5.9 3.3 1.4-6.9-5-4.7 6.6-.7z"/></svg>
@@ -2382,6 +2428,30 @@ function habitosMesHtml(mesKey){
 }
 
 function renderControle(main){
+  let html = `<div class="chip-row">
+    <button class="chip ${controleSubTab==='mensal'?'sel':''}" data-controlesub="mensal">Mensal</button>
+    <button class="chip ${controleSubTab==='semanal'?'sel':''}" data-controlesub="semanal">Semanal</button>
+  </div>`;
+
+  if (controleSubTab === 'semanal'){
+    main.innerHTML = html + revisaoSemanalHtml();
+    bindDeletes(main);
+    main.querySelectorAll('[data-controlesub]').forEach(chip=>{
+      chip.addEventListener('click', ()=>{ controleSubTab = chip.dataset.controlesub; render(); });
+    });
+    const notasArea = document.getElementById('ajustesSemanaTexto');
+    if (notasArea){
+      notasArea.addEventListener('blur', async ()=>{
+        const semana = startOfWeekISO(todayISO());
+        let reg = state.revisaoSemanal.find(r=>r.semana === semana);
+        if (reg) reg.notas = notasArea.value;
+        else state.revisaoSemanal.push({ id: uid(), semana, notas: notasArea.value });
+        await persist('revisaoSemanal');
+      });
+    }
+    return;
+  }
+
   const mesAtual = controleMes;
   const mesAnterior = shiftMonth(mesAtual, -1);
   const finAtual = financasResumoMes(mesAtual);
@@ -2396,7 +2466,7 @@ function renderControle(main){
   const treinosMesAnterior = state.treino.filter(l=>(l.date||'').startsWith(mesAnterior)).length;
   const pctTreinos = treinosMesAnterior !== 0 ? ((treinosMes - treinosMesAnterior)/treinosMesAnterior)*100 : (treinosMes!==0?100:0);
 
-  let html = monthNavHtml(mesAtual, 'controle');
+  html += monthNavHtml(mesAtual, 'controle');
 
   html += `<div class="kpi-grid">
     ${kpiCardHtml({ icon:'wallet', color:'var(--current)', value: formatMoney(finAtual.saldo), label:'Saldo do mês', pct: pctSaldo, hasPrev: houveMesAnterior })}
@@ -2423,6 +2493,10 @@ function renderControle(main){
 
   main.innerHTML = html;
 
+  main.querySelectorAll('[data-controlesub]').forEach(chip=>{
+    chip.addEventListener('click', ()=>{ controleSubTab = chip.dataset.controlesub; render(); });
+  });
+
   main.querySelectorAll('[data-monthnav]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const [alvo, dir] = btn.dataset.monthnav.split(':');
@@ -2435,6 +2509,69 @@ function renderControle(main){
   });
 
   renderControleCharts();
+}
+
+function revisaoSemanalHtml(){
+  const hoje = todayISO();
+  const inicioSemana = startOfWeekISO(hoje);
+
+  const totalTarefas = state.trabalho.length;
+  const tarefasFeitas = state.trabalho.filter(t=>t.done).length;
+  const pctTarefas = totalTarefas > 0 ? Math.round(tarefasFeitas/totalTarefas*100) : 0;
+
+  const diasDecorridos = Math.floor((new Date(hoje) - new Date(inicioSemana))/86400000) + 1;
+  const totalHabitos = state.habitos.length;
+  const possiveisHabitos = totalHabitos * diasDecorridos;
+  const feitosHabitos = state.habitoLogs.filter(l=> l.date >= inicioSemana && l.date <= hoje).length;
+  const pctHabitos = possiveisHabitos > 0 ? Math.round(feitosHabitos/possiveisHabitos*100) : 0;
+
+  const totaisTempo = tempoTotaisSemana();
+  const totalTempoSemana = TEMPO_PROJETOS.reduce((acc,p)=>acc+totaisTempo[p],0);
+  const maiorFocoTempo = TEMPO_PROJETOS.reduce((a,b)=> totaisTempo[b] > totaisTempo[a] ? b : a, TEMPO_PROJETOS[0]);
+
+  const lancSemana = state.caixaDiario.filter(l=> l.data >= inicioSemana && l.data <= hoje);
+  const entradasSemana = lancSemana.filter(l=>l.tipo==='entrada').reduce((a,l)=>a+l.valor,0);
+  const gastosSemana = lancSemana.filter(l=>l.tipo==='saida').reduce((a,l)=>a+l.valor,0);
+  const gastosPorCategoria = {};
+  lancSemana.filter(l=>l.tipo==='saida').forEach(l=>{
+    gastosPorCategoria[l.categoria||'Outros'] = (gastosPorCategoria[l.categoria||'Outros']||0) + l.valor;
+  });
+  const categoriasOrdenadas = Object.keys(gastosPorCategoria).sort((a,b)=>gastosPorCategoria[b]-gastosPorCategoria[a]);
+
+  const notaAtual = state.revisaoSemanal.find(r=>r.semana === inicioSemana);
+
+  let html = `<div class="row-sub" style="margin:2px 2px 8px;">Semana de ${formatDateShort(inicioSemana)} até hoje</div>`;
+
+  html += `<div class="kpi-grid">
+    ${kpiCardHtml({ icon:'check-circle', color:'var(--current)', value: `${tarefasFeitas}/${totalTarefas}`, label:'Tarefas concluídas', note: totalTarefas>0?`${pctTarefas}% do total`:'Nenhuma tarefa', noteColor:'var(--text-dim)' })}
+    ${kpiCardHtml({ icon:'zap', color:'var(--financas)', value: `${pctHabitos}%`, label:'Hábitos na semana', note: totalHabitos>0?`${feitosHabitos} de ${possiveisHabitos} possíveis`:'Nenhum hábito', noteColor:'var(--text-dim)' })}
+    ${kpiCardHtml({ icon:'clock', color:'var(--info)', value: formatHoras(totalTempoSemana), label:'Tempo registrado', note: totalTempoSemana>0?`Mais foco: ${maiorFocoTempo}`:'Nenhum registro', noteColor:'var(--text-dim)' })}
+    ${kpiCardHtml({ icon:'wallet', color: (entradasSemana-gastosSemana)>=0?'var(--current)':'var(--danger)', value: formatMoney(entradasSemana-gastosSemana), label:'Saldo da semana', note: `${formatMoney(entradasSemana)} entradas · ${formatMoney(gastosSemana)} gastos`, noteColor:'var(--text-dim)' })}
+  </div>`;
+
+  html += `<div class="card">
+    <div class="section-label" style="margin-top:0;">Gastos por categoria · essa semana</div>
+    ${categoriasOrdenadas.length === 0 ? `<div class="empty" style="padding:12px 0;"><span class="big" style="font-size:14px;">Nenhum gasto registrado ainda</span></div>` :
+      categoriasOrdenadas.map(cat=>{
+        const pct = gastosSemana>0 ? Math.round(gastosPorCategoria[cat]/gastosSemana*100) : 0;
+        return `<div style="margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+            <span>${esc(cat)}</span><span style="color:var(--text-dim);">${formatMoney(gastosPorCategoria[cat])} · ${pct}%</span>
+          </div>
+          <div style="height:7px;border-radius:4px;background:var(--surface-2);overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:var(--danger);"></div>
+          </div>
+        </div>`;
+      }).join('')}
+  </div>`;
+
+  html += `<div class="card">
+    <div class="section-label" style="margin-top:0;">Ajustes da semana</div>
+    <div style="font-size:12.5px;color:var(--text-dim);margin-bottom:8px;">O que funcionou, o que travou, o que muda na próxima semana.</div>
+    <textarea id="ajustesSemanaTexto" placeholder="Ex: Onak ficou de lado na quarta e quinta, preciso proteger o bloco da tarde..." style="width:100%;min-height:100px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:10px;font-family:inherit;font-size:13.5px;resize:vertical;">${notaAtual ? esc(notaAtual.notas) : ''}</textarea>
+  </div>`;
+
+  return html;
 }
 
 function renderControleCharts(){
@@ -2848,6 +2985,9 @@ function trabalhoForm(){
         <button type="button" data-val="baixa">Baixa</button>
       </div>
     </div>
+    <div class="field"><label for="f-area">Área</label>
+      <select id="f-area">${AREA_TAGS.map(a=>`<option value="${a}">${a}</option>`).join('')}</select>
+    </div>
     ${sheetActions('trabalho')}`;
 }
 function projetoForm(){
@@ -3240,7 +3380,8 @@ function wireSheet(){
       if (!title) return;
       const prioBtn = document.querySelector('#prio-toggle button.sel');
       const priority = prioBtn ? prioBtn.dataset.val : 'media';
-      state.trabalho.push({ id: uid(), title, done:false, priority });
+      const area = document.getElementById('f-area') ? document.getElementById('f-area').value : undefined;
+      state.trabalho.push({ id: uid(), title, done:false, priority, area });
       await persist('trabalho');
     }
     if (tab === 'projetos'){
