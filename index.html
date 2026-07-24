@@ -920,7 +920,8 @@ const STORAGE_KEY = {
   agenda:'agenda-events', trabalho:'trabalho-tasks', treino:'treino-logs', financas:'financas-transactions',
   projetos:'trabalho-projetos', cronograma:'trabalho-cronograma', estudos:'trabalho-estudos', caixinhas:'financas-caixinhas',
   bancos:'financas-bancos', trabalhoSessoes:'trabalho-sessoes', habitos:'vida-habitos', habitoLogs:'vida-habito-logs',
-  caixaDiario:'caixa-diario-lancamentos', tempoDiario:'tempo-diario-registros', revisaoSemanal:'revisao-semanal-notas'
+  caixaDiario:'caixa-diario-lancamentos', tempoDiario:'tempo-diario-registros', revisaoSemanal:'revisao-semanal-notas',
+  controleDia:'controle-dia-registros'
 };
 
 const DIARIA_LOCAIS = { 'Villa Kaboom': 90, 'Mágico Festas': 80 };
@@ -951,7 +952,7 @@ const CAIXINHA_TEMPLATES = {
 const DIAS_SEMANA = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
 const SUBTAB_LABELS = { tarefas:'Tarefas', projetos:'Projetos', cronograma:'Cronograma', estudos:'Estudos', tempo:'Tempo' };
 
-let state = { agenda:[], trabalho:[], treino:[], financas:[], projetos:[], cronograma:[], estudos:[], caixinhas:[], bancos:[], trabalhoSessoes:[], habitos:[], habitoLogs:[], caixaDiario:[], tempoDiario:[], revisaoSemanal:[] };
+let state = { agenda:[], trabalho:[], treino:[], financas:[], projetos:[], cronograma:[], estudos:[], caixinhas:[], bancos:[], trabalhoSessoes:[], habitos:[], habitoLogs:[], caixaDiario:[], tempoDiario:[], revisaoSemanal:[], controleDia:[] };
 const TEMPO_PROJETOS = ['Amazon','Shopee','T11','Onak','Casa'];
 const TEMPO_CORES = { Amazon:'#f59e0b', Shopee:'#f97316', T11:'#22c55e', Onak:'#3b82f6', Casa:'#a855f7' };
 let currentTab = 'inicio';
@@ -1493,16 +1494,28 @@ function agendaPorPeriodoHtml(){
       </div>`).join('')}</div>`).join('');
 }
 
-const ROTINA_BLOCKS = [
-  { periodo:'Manhã', horario:'08:00–12:00', inicioH:8, fimH:12, foco:'Renda ativa', detalhe:'Amazon, Shopee e T11 — execução e pedidos' },
-  { periodo:'Tarde', horario:'13:00–18:00', inicioH:13, fimH:18, foco:'Onak', detalhe:'Projeto principal — consultoria de nutrição' },
-  { periodo:'Estudo diário', horario:'18:00–19:00', inicioH:18, fimH:19, foco:'Nutrição + Marketing', detalhe:'Bloco fixo de estudo (ajuste o horário se quiser)' },
-  { periodo:'Noite', horario:'19:30–22:00', inicioH:19, fimH:23, foco:'Descanso / Concurso', detalhe:'Alternar entre descansar e revisar leve pro concurso' },
+const ROTINA_BASE = [
+  { periodo:'Bloco 1 — Renda ativa', horario:'Manhã · 3h', inicioH:8, fimH:11, detalhe:'Amazon, Shopee e T11Sports' },
+  { periodo:'Bloco 2 — Criação', horario:'Tarde · 2h', inicioH:13, fimH:15, detalhe:'Consultoria Endurance + Onak Hub' },
+  { periodo:'Estudo', horario:'Tarde · 1h', inicioH:15, fimH:16, detalhe:'30 min Nutrição Endurance + 30 min Marketing' },
 ];
+const ROTINA_BLOCO_EXTRA = { periodo:'Bloco 3 — Projetos', horario:'Tarde · 1h', inicioH:16, fimH:17, detalhe:'App SaaS, Canal Dark ou Concurso ADM (revezando)' };
+const DIAS_PROJETO_EXTRA = [1,3,5]; // getDay(): 0=domingo, 1=segunda, 3=quarta, 5=sexta
 
 function rotinaDoDiaHtml(){
-  const horaAtual = new Date().getHours();
-  return `<div class="card">${ROTINA_BLOCKS.map(b=>{
+  const agora = new Date();
+  const horaAtual = agora.getHours();
+  const diaSemana = agora.getDay();
+  const temExtra = DIAS_PROJETO_EXTRA.includes(diaSemana);
+  const blocos = temExtra ? [...ROTINA_BASE, ROTINA_BLOCO_EXTRA] : ROTINA_BASE;
+  const totalHoras = temExtra ? 6 : 5;
+
+  let html = `<div class="row-sub" style="margin:2px 2px 8px;display:flex;justify-content:space-between;">
+    <span>${temExtra ? 'Dia cheio · projetos hoje' : 'Dia padrão · terça/quinta livres de projeto extra'}</span>
+    <span>${totalHoras}h de trabalho</span>
+  </div>`;
+
+  html += `<div class="card">${blocos.map(b=>{
     const ativo = horaAtual >= b.inicioH && horaAtual < b.fimH;
     return `<div class="row" style="align-items:flex-start;${ativo?'background:var(--surface-2);border-radius:10px;padding-left:8px;padding-right:8px;':''}">
       <div style="flex:1;">
@@ -1510,11 +1523,121 @@ function rotinaDoDiaHtml(){
           <span class="row-title">${esc(b.periodo)}</span>
           ${ativo ? `<span style="font-size:10px;font-weight:700;color:var(--current);background:var(--current)22;padding:2px 8px;border-radius:20px;">AGORA</span>` : ''}
         </div>
-        <div style="font-size:12.5px;color:var(--text-dim);margin-top:2px;">${esc(b.horario)} · ${esc(b.foco)}</div>
+        <div style="font-size:12.5px;color:var(--text-dim);margin-top:2px;">${esc(b.horario)}</div>
         <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">${esc(b.detalhe)}</div>
       </div>
     </div>`;
   }).join('')}</div>`;
+
+  return html;
+}
+
+const BLOCO_AREAS = {
+  execucao: { titulo:'Execução', legenda:'Amazon, Shopee e T11', areas:['Amazon','Shopee','T11'] },
+  operacional: { titulo:'Operacional', legenda:'Consultoria Endurance + Onak Hub', areas:['Onak'] },
+  crescimento: { titulo:'Crescimento', legenda:'Estudo + projetos de IA', areas:['Estudo','IA'] },
+};
+
+function getControleDiaHoje(){
+  const hoje = todayISO();
+  let reg = state.controleDia.find(r=>r.data===hoje);
+  if (!reg){
+    reg = { id: uid(), data: hoje, execucao:false, operacional:false, crescimento:false, p1:'', p2:'', p3:'' };
+    state.controleDia.push(reg);
+  }
+  return reg;
+}
+
+function scoreControleDia(){
+  const reg = getControleDiaHoje();
+  const blocosFeitos = ['execucao','operacional','crescimento'].filter(k=>reg[k]).length;
+  const pontosBlocos = blocosFeitos * 2; // até 6
+  const totalHabitos = state.habitos.length;
+  const habitosFeitos = state.habitos.filter(h=>isHabitoConcluidoHoje(h.id)).length;
+  const pontosHabitos = totalHabitos > 0 ? Math.round((habitosFeitos/totalHabitos)*4) : 0; // até 4
+  return { total: pontosBlocos + pontosHabitos, pontosBlocos, pontosHabitos, blocosFeitos };
+}
+
+function ondeEstouHtml(){
+  const hoje = todayISO();
+  const semana = startOfWeekISO(hoje);
+  const revisao = state.revisaoSemanal.find(r=>r.semana===semana);
+  const focoSemana = revisao && revisao.foco ? revisao.foco : '';
+  const { total } = scoreControleDia();
+  const statusInfo = total >= 8 ? { txt:'Indo muito bem', cor:'var(--financas)' }
+    : total >= 5 ? { txt:'Na média', cor:'var(--warning)' }
+    : { txt:'Precisa de atenção', cor:'var(--danger)' };
+  const diaLabel = new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long' });
+
+  return `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
+      <div>
+        <div style="font-size:12px;color:var(--text-dim);">Hoje</div>
+        <div style="font-weight:600;font-size:15px;text-transform:capitalize;">${esc(diaLabel)}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:12px;color:var(--text-dim);">Status do dia</div>
+        <div style="font-weight:600;font-size:14px;color:${statusInfo.cor};">${statusInfo.txt}</div>
+      </div>
+    </div>
+    <div style="margin-top:12px;">
+      <label for="focoSemanaInput" style="font-size:12px;color:var(--text-dim);">Foco da semana</label>
+      <input id="focoSemanaInput" type="text" value="${esc(focoSemana)}" placeholder="Ex: Fechar 2 clientes na Onak" maxlength="80"
+        style="width:100%;margin-top:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 10px;font-size:13.5px;">
+    </div>
+  </div>`;
+}
+
+function oQueFazerHojeHtml(){
+  const reg = getControleDiaHoje();
+  return Object.entries(BLOCO_AREAS).map(([chave, bloco])=>{
+    const tarefas = state.trabalho.filter(t=>!t.done && bloco.areas.includes(t.area));
+    return `<div class="card" style="margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+        <div class="row-title">${esc(bloco.titulo)}</div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-dim);cursor:pointer;">
+          <input type="checkbox" data-bloco-check="${chave}" ${reg[chave]?'checked':''}> concluí hoje
+        </label>
+      </div>
+      <div style="font-size:12px;color:var(--text-dim);margin:2px 0 10px;">${esc(bloco.legenda)}</div>
+      ${tarefas.length === 0 ? `<div style="font-size:12.5px;color:var(--text-dim);">Nenhuma tarefa pendente nessa área.</div>` :
+        tarefas.map(t=>`<div class="row" style="padding:8px 0;">
+          <div class="checkbox" data-toggle="${t.id}" role="checkbox" aria-checked="false" tabindex="0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#14171d" stroke-width="3"><path d="M5 12l5 5L19 7"/></svg>
+          </div>
+          <div class="row-title" style="flex:1;font-size:13.5px;">${esc(t.title)}</div>
+        </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+function controleDoDiaHtml(){
+  const reg = getControleDiaHoje();
+  const { total, pontosBlocos, pontosHabitos } = scoreControleDia();
+  return `<div class="card">
+    <div class="row-sub" style="margin:0 0 8px;">Checklist do dia</div>
+    ${habitosHojeHtml()}
+  </div>
+  <div class="card" style="margin-top:12px;text-align:center;">
+    <div style="font-size:12px;color:var(--text-dim);">Score do dia</div>
+    <div style="font-family:var(--font-mono);font-size:36px;font-weight:700;margin:4px 0;">${total}<span style="font-size:16px;color:var(--text-dim);">/10</span></div>
+    <div style="font-size:11.5px;color:var(--text-dim);">${pontosBlocos}/6 pelos blocos · ${pontosHabitos}/4 pelos hábitos</div>
+  </div>
+  <div class="card" style="margin-top:12px;">
+    <div class="row-sub" style="margin:0 0 10px;">3 perguntas rápidas</div>
+    <div style="margin-bottom:10px;">
+      <label for="p1Input" style="font-size:12.5px;color:var(--text-dim);">O que funcionou hoje?</label>
+      <input id="p1Input" type="text" value="${esc(reg.p1||'')}" maxlength="120" style="width:100%;margin-top:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 10px;font-size:13.5px;">
+    </div>
+    <div style="margin-bottom:10px;">
+      <label for="p2Input" style="font-size:12.5px;color:var(--text-dim);">O que travou?</label>
+      <input id="p2Input" type="text" value="${esc(reg.p2||'')}" maxlength="120" style="width:100%;margin-top:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 10px;font-size:13.5px;">
+    </div>
+    <div>
+      <label for="p3Input" style="font-size:12.5px;color:var(--text-dim);">O que eu mudo amanhã?</label>
+      <input id="p3Input" type="text" value="${esc(reg.p3||'')}" maxlength="120" style="width:100%;margin-top:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 10px;font-size:13.5px;">
+    </div>
+  </div>`;
 }
 
 function renderInicio(main){
@@ -1531,14 +1654,19 @@ function renderInicio(main){
 
   let html = quickActionsHtml();
 
-  html += `<div class="section-label" style="margin-top:0;">Rotina do dia</div>`;
-  html += rotinaDoDiaHtml();
+  html += `<div class="section-label" style="margin-top:0;">Onde estou</div>`;
+  html += ondeEstouHtml();
+
+  html += `<div class="section-label">O que fazer hoje</div>`;
+  html += oQueFazerHojeHtml();
+
+  html += `<div class="section-label">Controle do dia</div>`;
+  html += controleDoDiaHtml();
 
   html += `<div class="kpi-grid">
     ${kpiCardHtml({ icon:'clock', color:'var(--current)', value: formatDuracao(trabalhoMin), label:'Trabalhadas hoje', note: trabalhoMin>0?'Registrado via cronômetro':'Nenhum registro ainda', noteColor:'var(--text-dim)' })}
     ${kpiCardHtml({ icon:'book', color:'var(--info)', value: formatDuracao(estudoMin), label:'Estudadas hoje', note: estudoMin>0?'Registrado via cronômetro':'Nenhum registro ainda', noteColor:'var(--text-dim)' })}
     ${kpiCardHtml({ icon:'check-circle', color:'var(--financas)', value: `${habitosFeitos}/${totalHabitos}`, label:'Hábitos concluídos', note: totalHabitos>0 ? `${Math.round(habitRatio*100)}% do dia` : 'Nenhum hábito criado', noteColor:'var(--text-dim)' })}
-    ${kpiCardHtml({ icon:'zap', color: status.color, value: `${score}%`, label:'Score do dia', note: status.label, noteColor: status.color, bar: score, barColor: status.color })}
   </div>`;
 
   html += feedbackInteligenteHtml({ trabalhoMin, estudoMin, habitRatio });
@@ -1547,9 +1675,6 @@ function renderInicio(main){
   html += focoDoDiaHtml();
 
   html += cronoWidgetHtml();
-
-  html += `<div class="section-label">Hábitos de hoje</div>`;
-  html += habitosHojeHtml();
 
   html += `<div class="section-label">Agenda de hoje</div>`;
   html += agendaPorPeriodoHtml();
@@ -1589,9 +1714,39 @@ function renderInicio(main){
         render();
         requestAnimationFrame(()=>{ document.getElementById('cronoCard')?.scrollIntoView({ behavior:'smooth', block:'center' }); });
       } else if (acao === 'scroll-habitos'){
-        const label = [...main.querySelectorAll('.section-label')].find(el=>el.textContent==='Hábitos de hoje');
+        const label = [...main.querySelectorAll('.section-label')].find(el=>el.textContent==='Controle do dia');
         if (label) label.scrollIntoView({ behavior:'smooth', block:'start' });
       }
+    });
+  });
+
+  const focoSemanaInput = document.getElementById('focoSemanaInput');
+  if (focoSemanaInput){
+    focoSemanaInput.addEventListener('blur', async ()=>{
+      const semana = startOfWeekISO(todayISO());
+      let reg = state.revisaoSemanal.find(r=>r.semana === semana);
+      if (reg) reg.foco = focoSemanaInput.value;
+      else state.revisaoSemanal.push({ id: uid(), semana, notas:'', foco: focoSemanaInput.value });
+      await persist('revisaoSemanal');
+    });
+  }
+
+  main.querySelectorAll('[data-bloco-check]').forEach(chk=>{
+    chk.addEventListener('change', async ()=>{
+      const reg = getControleDiaHoje();
+      reg[chk.dataset.blocoCheck] = chk.checked;
+      await persist('controleDia');
+      render();
+    });
+  });
+
+  ['p1Input','p2Input','p3Input'].forEach((id, idx)=>{
+    const input = document.getElementById(id);
+    if (!input) return;
+    input.addEventListener('blur', async ()=>{
+      const reg = getControleDiaHoje();
+      reg['p'+(idx+1)] = input.value;
+      await persist('controleDia');
     });
   });
 }
@@ -1982,6 +2137,20 @@ function treinoLogHtml(){
       </div>`).join('')}</div>`;
   }
   return html;
+}
+
+const HABITOS_PADRAO = ['Acordar 05:30', 'Beber 3L de água', 'Comer 1 fruta', 'Zero refrigerante', 'Organizar a casa'];
+
+async function seedHabitosPadrao(){
+  const flagKey = LS_PREFIX + 'seed-habitos-v1';
+  try{
+    if (localStorage.getItem(flagKey)) return;
+  }catch(e){ return; }
+  if (state.habitos.length === 0){
+    HABITOS_PADRAO.forEach(nome=> state.habitos.push({ id: uid(), nome }));
+    await persist('habitos');
+  }
+  try{ localStorage.setItem(flagKey, '1'); }catch(e){}
 }
 
 function isHabitoConcluidoHoje(habitoId){
@@ -3509,6 +3678,7 @@ async function startApp(){
   document.getElementById('dateLabel').textContent = new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long' });
   document.getElementById('content').innerHTML = `<div class="empty">Carregando seus dados…</div>`;
   await loadAll();
+  await seedHabitosPadrao();
   relatoriosMes = currentMonthKey();
   controleMes = currentMonthKey();
   setActiveTab('inicio');
