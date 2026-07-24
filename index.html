@@ -921,7 +921,7 @@ const STORAGE_KEY = {
   projetos:'trabalho-projetos', cronograma:'trabalho-cronograma', estudos:'trabalho-estudos', caixinhas:'financas-caixinhas',
   bancos:'financas-bancos', trabalhoSessoes:'trabalho-sessoes', habitos:'vida-habitos', habitoLogs:'vida-habito-logs',
   caixaDiario:'caixa-diario-lancamentos', tempoDiario:'tempo-diario-registros', revisaoSemanal:'revisao-semanal-notas',
-  controleDia:'controle-dia-registros'
+  controleDia:'controle-dia-registros', missoesConcluidas:'missoes-concluidas-log'
 };
 
 const DIARIA_LOCAIS = { 'Villa Kaboom': 90, 'Mágico Festas': 80 };
@@ -952,15 +952,15 @@ const CAIXINHA_TEMPLATES = {
 const DIAS_SEMANA = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
 const SUBTAB_LABELS = { tarefas:'Tarefas', projetos:'Projetos', cronograma:'Cronograma', estudos:'Estudos', tempo:'Tempo' };
 
-let state = { agenda:[], trabalho:[], treino:[], financas:[], projetos:[], cronograma:[], estudos:[], caixinhas:[], bancos:[], trabalhoSessoes:[], habitos:[], habitoLogs:[], caixaDiario:[], tempoDiario:[], revisaoSemanal:[], controleDia:[] };
+let state = { agenda:[], trabalho:[], treino:[], financas:[], projetos:[], cronograma:[], estudos:[], caixinhas:[], bancos:[], trabalhoSessoes:[], habitos:[], habitoLogs:[], caixaDiario:[], tempoDiario:[], revisaoSemanal:[], controleDia:[], missoesConcluidas:[] };
 const TEMPO_PROJETOS = ['Amazon','Shopee','T11','Onak','Casa'];
 const TEMPO_CORES = { Amazon:'#f59e0b', Shopee:'#f97316', T11:'#22c55e', Onak:'#3b82f6', Casa:'#a855f7' };
 let currentTab = 'inicio';
 let trabalhoSubTab = 'tarefas';
 let controleSubTab = 'mensal';
 let tarefasFiltroArea = 'todas';
-const AREA_TAGS = ['Amazon','Shopee','T11','Onak','Estudo','IA','Vida'];
-const AREA_CORES = { Amazon:'#f59e0b', Shopee:'#f97316', T11:'#22c55e', Onak:'#3b82f6', Estudo:'#eab308', IA:'#ec4899', Vida:'#94a3b8' };
+const AREA_TAGS = ['Amazon','Shopee','T11','Onak','Estudo','IA'];
+const AREA_CORES = { Amazon:'#f59e0b', Shopee:'#f97316', T11:'#22c55e', Onak:'#3b82f6', Estudo:'#eab308', IA:'#ec4899' };
 let financasSubTab = 'diario';
 let financasFilter = 'todos';
 let currentFinType = 'diaria';
@@ -1532,6 +1532,56 @@ function rotinaDoDiaHtml(){
   return html;
 }
 
+const CRONOGRAMA_DIA_BASE = [
+  { periodo:'Manhã', itens:[
+    { horario:'08:00–10:00', ini:480, fim:600, tipo:'trabalho', label:'Bloco de trabalho' },
+    { horario:'10:00–10:15', ini:600, fim:615, tipo:'pausa', label:'Pausa' },
+    { horario:'10:15–11:00', ini:615, fim:660, tipo:'trabalho', label:'Bloco de trabalho' },
+  ]},
+  { periodo:'Tarde', itens:[
+    { horario:'12:00–13:00', ini:720, fim:780, tipo:'pausa', label:'Almoço / descanso' },
+    { horario:'13:00–15:00', ini:780, fim:900, tipo:'trabalho', label:'Bloco de trabalho' },
+    { horario:'15:00–15:15', ini:900, fim:915, tipo:'pausa', label:'Pausa' },
+    { horario:'15:15–16:15', ini:915, fim:975, tipo:'estudo', label:'Estudo' },
+  ]},
+];
+const CRONOGRAMA_ITEM_EXTRA = { horario:'16:15–17:15', ini:975, fim:1035, tipo:'trabalho', label:'Bloco extra (projeto do dia)' };
+const CRONOGRAMA_NOITE = [
+  { horario:'19:00–22:00', ini:1140, fim:1320, tipo:'descanso', label:'Descanso / estudo leve (alternado)' },
+];
+const CRONOGRAMA_CORES = { trabalho:'var(--current)', pausa:'var(--text-dim)', estudo:'var(--info)', descanso:'#a855f7' };
+
+function cronogramaDiaHtml(){
+  const agora = new Date();
+  const minutosAgora = agora.getHours()*60 + agora.getMinutes();
+  const diaSemana = agora.getDay();
+  const temExtra = DIAS_PROJETO_EXTRA.includes(diaSemana);
+
+  const tarde = temExtra ? [...CRONOGRAMA_DIA_BASE[1].itens, CRONOGRAMA_ITEM_EXTRA] : CRONOGRAMA_DIA_BASE[1].itens;
+  const grupos = [
+    { periodo:'Manhã', itens: CRONOGRAMA_DIA_BASE[0].itens },
+    { periodo:'Tarde', itens: tarde },
+    { periodo:'Noite', itens: CRONOGRAMA_NOITE },
+  ];
+
+  return grupos.map(g=>`
+    <div class="row-sub" style="margin:12px 2px 6px;">${esc(g.periodo)}</div>
+    <div class="card">${g.itens.map(item=>{
+      const ativo = minutosAgora >= item.ini && minutosAgora < item.fim;
+      return `<div class="row" style="align-items:flex-start;${ativo?'background:var(--surface-2);border-radius:10px;padding-left:8px;padding-right:8px;':''}">
+        <div style="width:8px;height:8px;border-radius:50%;background:${CRONOGRAMA_CORES[item.tipo]};margin-top:6px;flex-shrink:0;"></div>
+        <div style="flex:1;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span class="row-title" style="font-size:13.5px;">${esc(item.label)}</span>
+            ${ativo ? `<span style="font-size:10px;font-weight:700;color:var(--current);background:var(--current)22;padding:2px 8px;border-radius:20px;">AGORA</span>` : ''}
+          </div>
+          <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">${esc(item.horario)}</div>
+        </div>
+      </div>`;
+    }).join('')}</div>`
+  ).join('');
+}
+
 const BLOCO_AREAS = {
   execucao: { titulo:'Execução', legenda:'Amazon, Shopee e T11', areas:['Amazon','Shopee','T11'] },
   operacional: { titulo:'Operacional', legenda:'Consultoria Endurance + Onak Hub', areas:['Onak'] },
@@ -1657,6 +1707,9 @@ function renderInicio(main){
   html += `<div class="section-label" style="margin-top:0;">Onde estou</div>`;
   html += ondeEstouHtml();
 
+  html += `<div class="section-label">Cronograma do dia</div>`;
+  html += cronogramaDiaHtml();
+
   html += `<div class="section-label">O que fazer hoje</div>`;
   html += oQueFazerHojeHtml();
 
@@ -1686,10 +1739,11 @@ function renderInicio(main){
   bindDeletes(main);
 
   main.querySelectorAll('[data-toggle]').forEach(el=>{
-    const toggle = ()=>{
+    const toggle = async ()=>{
       const item = state.trabalho.find(t=>t.id===el.dataset.toggle);
       item.done = true;
-      persist('trabalho');
+      await persist('trabalho');
+      await registrarMissaoConcluida(item);
       render();
     };
     el.addEventListener('click', toggle);
@@ -1832,10 +1886,12 @@ function renderTrabalho(main){
       });
     });
     main.querySelectorAll('[data-toggle]').forEach(el=>{
-      const toggle = ()=>{
+      const toggle = async ()=>{
         const item = state.trabalho.find(t=>t.id===el.dataset.toggle);
+        const ficouConcluida = !item.done;
         item.done = !item.done;
-        persist('trabalho');
+        await persist('trabalho');
+        if (ficouConcluida) await registrarMissaoConcluida(item);
         render();
       };
       el.addEventListener('click', toggle);
@@ -2151,6 +2207,11 @@ async function seedHabitosPadrao(){
     await persist('habitos');
   }
   try{ localStorage.setItem(flagKey, '1'); }catch(e){}
+}
+
+async function registrarMissaoConcluida(task){
+  state.missoesConcluidas.push({ id: uid(), taskId: task.id, title: task.title, area: task.area || null, data: todayISO() });
+  await persist('missoesConcluidas');
 }
 
 function isHabitoConcluidoHoje(habitoId){
@@ -2680,6 +2741,52 @@ function renderControle(main){
   renderControleCharts();
 }
 
+function addDiasISO(dataISO, dias){
+  const d = new Date(dataISO + 'T00:00:00');
+  d.setDate(d.getDate() + dias);
+  return d.toISOString().slice(0,10);
+}
+
+function comparativoMissoesHtml(){
+  const hoje = todayISO();
+  const inicioSemana = startOfWeekISO(hoje);
+  const inicioSemanaPassada = addDiasISO(inicioSemana, -7);
+  const inicio4Semanas = addDiasISO(hoje, -28);
+
+  const estaSemana = state.missoesConcluidas.filter(m=> m.data >= inicioSemana && m.data <= hoje).length;
+  const semanaPassada = state.missoesConcluidas.filter(m=> m.data >= inicioSemanaPassada && m.data < inicioSemana).length;
+  const ultimas4Semanas = state.missoesConcluidas.filter(m=> m.data >= inicio4Semanas && m.data <= hoje).length;
+  const mediaMensal = Math.round((ultimas4Semanas/4)*10)/10;
+
+  const compara = (atual, referencia)=>{
+    if (referencia === 0) return atual > 0 ? { txt:`+${atual}`, cor:'var(--financas)' } : { txt:'=', cor:'var(--text-dim)' };
+    const diff = atual - referencia;
+    if (diff > 0) return { txt:`▲ ${diff} a mais`, cor:'var(--financas)' };
+    if (diff < 0) return { txt:`▼ ${Math.abs(diff)} a menos`, cor:'var(--danger)' };
+    return { txt:'= igual', cor:'var(--text-dim)' };
+  };
+  const vsSemana = compara(estaSemana, semanaPassada);
+  const vsMes = compara(estaSemana, mediaMensal);
+
+  return `<div class="card">
+    <div class="section-label" style="margin-top:0;">Missões concluídas</div>
+    <div style="text-align:center;margin-bottom:10px;">
+      <div style="font-family:var(--font-mono);font-size:32px;font-weight:700;">${estaSemana}</div>
+      <div style="font-size:11.5px;color:var(--text-dim);">essa semana</div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <div style="flex:1;text-align:center;padding:10px;background:var(--surface-2);border-radius:10px;">
+        <div style="font-size:11px;color:var(--text-dim);">vs semana passada (${semanaPassada})</div>
+        <div style="font-weight:600;font-size:14px;color:${vsSemana.cor};margin-top:2px;">${vsSemana.txt}</div>
+      </div>
+      <div style="flex:1;text-align:center;padding:10px;background:var(--surface-2);border-radius:10px;">
+        <div style="font-size:11px;color:var(--text-dim);">vs média do mês (${mediaMensal})</div>
+        <div style="font-weight:600;font-size:14px;color:${vsMes.cor};margin-top:2px;">${vsMes.txt}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
 function revisaoSemanalHtml(){
   const hoje = todayISO();
   const inicioSemana = startOfWeekISO(hoje);
@@ -2710,6 +2817,8 @@ function revisaoSemanalHtml(){
   const notaAtual = state.revisaoSemanal.find(r=>r.semana === inicioSemana);
 
   let html = `<div class="row-sub" style="margin:2px 2px 8px;">Semana de ${formatDateShort(inicioSemana)} até hoje</div>`;
+
+  html += comparativoMissoesHtml();
 
   html += `<div class="kpi-grid">
     ${kpiCardHtml({ icon:'check-circle', color:'var(--current)', value: `${tarefasFeitas}/${totalTarefas}`, label:'Tarefas concluídas', note: totalTarefas>0?`${pctTarefas}% do total`:'Nenhuma tarefa', noteColor:'var(--text-dim)' })}
