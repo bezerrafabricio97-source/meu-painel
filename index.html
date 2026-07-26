@@ -953,8 +953,20 @@ const DIAS_SEMANA = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Dom
 const SUBTAB_LABELS = { tarefas:'Tarefas', projetos:'Projetos', cronograma:'Cronograma', estudos:'Estudos', tempo:'Tempo' };
 
 let state = { agenda:[], trabalho:[], treino:[], financas:[], projetos:[], cronograma:[], estudos:[], caixinhas:[], bancos:[], trabalhoSessoes:[], habitos:[], habitoLogs:[], caixaDiario:[], tempoDiario:[], revisaoSemanal:[], controleDia:[], missoesConcluidas:[] };
-const TEMPO_PROJETOS = ['Amazon','Shopee','T11','Onak','Casa'];
-const TEMPO_CORES = { Amazon:'#f59e0b', Shopee:'#f97316', T11:'#22c55e', Onak:'#3b82f6', Casa:'#a855f7' };
+const TEMPO_GRUPOS = [
+  { chave:'manha', titulo:'🌅 Manhã', projetos:['Amazon','T11Sports','Shopee'] },
+  { chave:'tarde', titulo:'🌇 Tarde', projetos:['Consultoria Endurance','Onak Hub'] },
+  { chave:'estudos', titulo:'📚 Estudos', projetos:['Nutrição Endurance','Marketing Digital'] },
+  { chave:'lifestyle', titulo:'🧪 Lifestyle', projetos:['TikTok Shopping Afiliados','Aplicativo SaaS'] },
+];
+const TEMPO_PROJETOS = TEMPO_GRUPOS.flatMap(g=>g.projetos);
+const TEMPO_CORES = {
+  Amazon:'#f59e0b', T11Sports:'#22c55e', Shopee:'#f97316',
+  'Consultoria Endurance':'#3b82f6', 'Onak Hub':'#0ea5e9',
+  'Nutrição Endurance':'#eab308', 'Marketing Digital':'#a855f7',
+  'TikTok Shopping Afiliados':'#ec4899', 'Aplicativo SaaS':'#14b8a6',
+};
+const CICLO_LIFESTYLE = { fim:'2026-01-01', projetos:['TikTok Shopping Afiliados','Aplicativo SaaS'] };
 let currentTab = 'inicio';
 let trabalhoSubTab = 'tarefas';
 let controleSubTab = 'mensal';
@@ -970,7 +982,7 @@ let relatoriosMes = null; // definido no startApp
 let currentEditId = null;
 let treinoSubTab = 'treino';
 let controleMes = null; // definido no startApp
-let cronometro = { tipo:'estudo', running:false, startedAt:null, accumulatedMs:0 };
+let cronometro = { projeto:null, running:false, startedAt:null, accumulatedMs:0 };
 
 function getSplitPlanFromForm(){
   const plan = [];
@@ -1156,24 +1168,44 @@ function cronoPause(){
   cronometro.startedAt = null;
   persistCronometro();
 }
-function cronoSetTipo(tipo){
+function cronoSetProjeto(projeto){
   if (cronometro.running) return;
-  cronometro.tipo = tipo;
+  cronometro.projeto = projeto;
   persistCronometro();
 }
 async function cronoFinalizar(){
   if (cronometro.running) cronoPause();
   const totalMin = Math.round(cronoElapsedMs() / 60000);
-  if (totalMin >= 1){
-    if (cronometro.tipo === 'estudo'){
-      state.estudos.push({ id: uid(), date: todayISO(), materia: 'Cronômetro', duracao: totalMin });
+  const projeto = cronometro.projeto;
+
+  if (totalMin >= 1 && projeto){
+    const hoje = todayISO();
+    let reg = state.tempoDiario.find(r=>r.data===hoje);
+    if (!reg){ reg = { id: uid(), data: hoje, horas:{} }; state.tempoDiario.push(reg); }
+    if (!reg.horas) reg.horas = {};
+    reg.horas[projeto] = (reg.horas[projeto] || 0) + totalMin/60;
+    await persist('tempoDiario');
+
+    const grupo = TEMPO_GRUPOS.find(g=>g.projetos.includes(projeto));
+    if (grupo && grupo.chave === 'estudos'){
+      state.estudos.push({ id: uid(), date: hoje, materia: projeto, duracao: totalMin });
       await persist('estudos');
     } else {
-      state.trabalhoSessoes.push({ id: uid(), date: todayISO(), duracao: totalMin });
+      state.trabalhoSessoes.push({ id: uid(), date: hoje, duracao: totalMin, projeto });
       await persist('trabalhoSessoes');
     }
+
+    const totalProjetoHoje = reg.horas[projeto];
+    cronometro = { projeto:null, running:false, startedAt:null, accumulatedMs:0 };
+    await persistCronometro();
+
+    trabalhoSubTab = 'tempo';
+    setActiveTab('trabalho');
+    showToast(`✓ ${formatHoras(totalProjetoHoje)} em ${projeto} hoje`);
+    return;
   }
-  cronometro = { tipo: cronometro.tipo, running:false, startedAt:null, accumulatedMs:0 };
+
+  cronometro = { projeto: cronometro.projeto, running:false, startedAt:null, accumulatedMs:0 };
   await persistCronometro();
   render();
 }
@@ -1184,31 +1216,48 @@ function updateCronoDisplay(){
 setInterval(updateCronoDisplay, 1000);
 
 function cronoWidgetHtml(){
-  const runningEstudo = cronometro.tipo === 'estudo';
-  return `<div class="card ${cronometro.running?'crono-active':''}" id="cronoCard">
-    <div class="section-label" style="margin-top:0;">Cronômetro</div>
-    <div class="toggle-group" id="crono-tipo-toggle" style="margin-bottom:14px;">
-      <button type="button" data-val="estudo" class="${runningEstudo?'sel':''}" style="${runningEstudo?'background:var(--current);color:#0a0d10;':''}" ${cronometro.running?'disabled':''}>Estudo</button>
-      <button type="button" data-val="trabalho" class="${!runningEstudo?'sel':''}" style="${!runningEstudo?'background:var(--current);color:#0a0d10;':''}" ${cronometro.running?'disabled':''}>Trabalho</button>
-    </div>
-    <div style="text-align:center; margin-bottom:16px;">
-      <div id="cronoDisplay" class="${cronometro.running?'crono-pulse':''}" style="font-family:var(--font-mono); font-size:44px; font-weight:600; letter-spacing:.02em;">${cronoFormat(cronoElapsedMs())}</div>
-    </div>
-    <div class="sheet-actions" style="margin-top:0;">
+  const projetoAtivo = cronometro.projeto;
+  const elapsed = cronoElapsedMs();
+  const podeEscolher = !cronometro.running && elapsed === 0;
+
+  let html = `<div class="card ${cronometro.running?'crono-active':''}" id="cronoCard">
+    <div class="section-label" style="margin-top:0;">Cronômetro</div>`;
+
+  if (projetoAtivo){
+    html += `<div style="text-align:center;font-size:13px;font-weight:600;color:${TEMPO_CORES[projetoAtivo]||'var(--text-dim)'};margin-bottom:4px;">${esc(projetoAtivo)}</div>`;
+  } else {
+    html += `<div style="text-align:center;font-size:12.5px;color:var(--text-dim);margin-bottom:4px;">Toque num projeto pra começar</div>`;
+  }
+
+  html += `<div style="text-align:center;margin-bottom:${podeEscolher?'10':'16'}px;">
+    <div id="cronoDisplay" class="${cronometro.running?'crono-pulse':''}" style="font-family:var(--font-mono); font-size:44px; font-weight:600; letter-spacing:.02em;">${cronoFormat(elapsed)}</div>
+  </div>`;
+
+  if (podeEscolher){
+    html += TEMPO_GRUPOS.map(g=>`
+      <div style="font-size:11px;color:var(--text-dim);margin:8px 0 6px;">${esc(g.titulo)}</div>
+      <div class="chip-row" style="margin-bottom:2px;flex-wrap:wrap;">
+        ${g.projetos.map(p=>`<button type="button" class="chip" data-crono-projeto="${esc(p)}">${esc(p)}</button>`).join('')}
+      </div>`).join('');
+  }
+
+  html += `<div class="sheet-actions" style="margin-top:14px;">
       ${cronometro.running
         ? `<button type="button" class="btn-cancel" id="cronoPauseBtn">Pausar</button>`
-        : `<button type="button" class="btn-cancel" id="cronoStartBtn">${cronoElapsedMs()>0?'Retomar':'Iniciar'}</button>`}
-      <button type="button" class="btn-save" id="cronoFinishBtn" ${cronoElapsedMs()===0?'disabled style="opacity:.5;"':''}>Encerrar</button>
+        : (projetoAtivo && elapsed>0 ? `<button type="button" class="btn-cancel" id="cronoStartBtn">Retomar</button>` : '')}
+      <button type="button" class="btn-save" id="cronoFinishBtn" ${elapsed===0?'disabled style="opacity:.5;"':''}>Encerrar</button>
     </div>
   </div>`;
+  return html;
 }
 function wireCronoWidget(main){
-  const tipoToggle = document.getElementById('crono-tipo-toggle');
-  if (tipoToggle){
-    tipoToggle.querySelectorAll('button').forEach(b=>{
-      b.addEventListener('click', ()=>{ cronoSetTipo(b.dataset.val); render(); });
+  main.querySelectorAll('[data-crono-projeto]').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      cronoSetProjeto(chip.dataset.cronoProjeto);
+      cronoStart();
+      render();
     });
-  }
+  });
   const startBtn = document.getElementById('cronoStartBtn');
   if (startBtn) startBtn.addEventListener('click', ()=>{ cronoStart(); render(); });
   const pauseBtn = document.getElementById('cronoPauseBtn');
@@ -1763,8 +1812,8 @@ function renderInicio(main){
     btn.addEventListener('click', ()=>{
       const acao = btn.dataset.feedbackAcao;
       if (acao === 'crono-estudo' || acao === 'crono-trabalho'){
-        const tipo = acao === 'crono-estudo' ? 'estudo' : 'trabalho';
-        if (!cronometro.running){ cronoSetTipo(tipo); cronoStart(); }
+        const projetoPadrao = acao === 'crono-estudo' ? TEMPO_GRUPOS.find(g=>g.chave==='estudos').projetos[0] : TEMPO_GRUPOS.find(g=>g.chave==='manha').projetos[0];
+        if (!cronometro.running && !cronometro.projeto){ cronoSetProjeto(projetoPadrao); cronoStart(); }
         render();
         requestAnimationFrame(()=>{ document.getElementById('cronoCard')?.scrollIntoView({ behavior:'smooth', block:'center' }); });
       } else if (acao === 'scroll-habitos'){
@@ -1837,6 +1886,7 @@ function renderAgenda(main){
   main.innerHTML = `<div class="card">${eventos.map(e=>`
     <div class="row">
       <div class="row-time">${esc(e.time)}</div>
+      ${e.area === 'Vida' ? `<span style="font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:20px;background:#94a3b822;color:#94a3b8;white-space:nowrap;">Vida</span>` : ''}
       <div class="row-title">${esc(e.title)}</div>
       <button class="del-btn" data-del="agenda" data-id="${e.id}">✕</button>
     </div>`).join('')}</div>`;
@@ -1986,30 +2036,45 @@ function tempoHtml(){
   const valoresHoje = {};
   TEMPO_PROJETOS.forEach(p=> valoresHoje[p] = (registroHoje && registroHoje.horas && registroHoje.horas[p]) || 0);
   const totalHoje = TEMPO_PROJETOS.reduce((acc,p)=> acc + valoresHoje[p], 0);
+  const totalEstudoHoje = TEMPO_GRUPOS.find(g=>g.chave==='estudos').projetos.reduce((a,p)=>a+valoresHoje[p],0);
+  const totalLifestyleHoje = TEMPO_GRUPOS.find(g=>g.chave==='lifestyle').projetos.reduce((a,p)=>a+valoresHoje[p],0);
+  const totalTrabalhoHoje = totalHoje - totalEstudoHoje - totalLifestyleHoje;
 
   let html = `<div class="row-sub" style="margin:2px 2px 8px;">Registro do dia</div>
   <div class="card" style="padding:14px;">
-    ${TEMPO_PROJETOS.map(p=>{
-      const pct = totalHoje > 0 ? Math.round(valoresHoje[p]/totalHoje*100) : 0;
-      return `<div style="margin-bottom:12px;">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <div style="width:56px;font-size:13.5px;color:var(--text);">${esc(p)}</div>
-          <input class="tempo-input" data-projeto="${p}" type="number" step="0.5" min="0" placeholder="0"
-            value="${valoresHoje[p] || ''}"
-            style="width:64px;background:var(--surface-2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:6px 8px;font-family:var(--font-mono);text-align:center;">
-          <span style="font-size:12px;color:var(--text-dim);">h</span>
-          <div style="flex:1;height:6px;border-radius:4px;background:var(--surface-2);overflow:hidden;">
-            <div data-tempo-bar="${p}" style="height:100%;width:${pct}%;background:${TEMPO_CORES[p]};transition:width .15s ease;"></div>
+    ${TEMPO_GRUPOS.map(g=>`
+      <div style="font-size:11px;color:var(--text-dim);margin:4px 0 8px;">${esc(g.titulo)}</div>
+      ${g.projetos.map(p=>{
+        const pct = totalHoje > 0 ? Math.round(valoresHoje[p]/totalHoje*100) : 0;
+        return `<div style="margin-bottom:12px;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:110px;font-size:13px;color:var(--text);">${esc(p)}</div>
+            <input class="tempo-input" data-projeto="${esc(p)}" type="number" step="0.5" min="0" placeholder="0"
+              value="${valoresHoje[p] || ''}"
+              style="width:60px;background:var(--surface-2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:6px 8px;font-family:var(--font-mono);text-align:center;">
+            <span style="font-size:12px;color:var(--text-dim);">h</span>
           </div>
-          <div data-tempo-pct="${p}" style="width:34px;text-align:right;font-size:12px;color:var(--text-dim);">${pct}%</div>
-        </div>
-      </div>`;
-    }).join('')}
+          <div style="display:flex;align-items:center;gap:8px;margin-top:5px;">
+            <div style="flex:1;height:6px;border-radius:4px;background:var(--surface-2);overflow:hidden;">
+              <div data-tempo-bar="${esc(p)}" style="height:100%;width:${pct}%;background:${TEMPO_CORES[p]};transition:width .15s ease;"></div>
+            </div>
+            <div data-tempo-pct="${esc(p)}" style="width:34px;text-align:right;font-size:11.5px;color:var(--text-dim);">${pct}%</div>
+          </div>
+        </div>`;
+      }).join('')}
+    `).join('')}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding-top:12px;border-top:1px solid var(--line);">
       <span style="font-size:13px;color:var(--text-dim);">Total do dia</span>
       <span id="tempoTotalHoje" style="font-family:var(--font-mono);font-size:20px;font-weight:600;">${formatHoras(totalHoje)}</span>
     </div>
     <button type="button" id="btnSalvarTempo" class="btn-save" style="width:100%;margin-top:14px;padding:13px;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;">Salvar registro do dia</button>
+  </div>`;
+
+  html += `<div class="row-sub" style="margin:18px 2px 8px;">Hoje por categoria</div>
+  <div class="card" style="padding:14px;display:flex;gap:10px;text-align:center;">
+    <div style="flex:1;"><div style="font-size:11px;color:var(--text-dim);">Trabalho</div><div style="font-family:var(--font-mono);font-weight:600;font-size:16px;margin-top:2px;">${formatHoras(totalTrabalhoHoje)}</div></div>
+    <div style="flex:1;"><div style="font-size:11px;color:var(--text-dim);">Estudo</div><div style="font-family:var(--font-mono);font-weight:600;font-size:16px;margin-top:2px;">${formatHoras(totalEstudoHoje)}</div></div>
+    <div style="flex:1;"><div style="font-size:11px;color:var(--text-dim);">Lifestyle</div><div style="font-family:var(--font-mono);font-weight:600;font-size:16px;margin-top:2px;">${formatHoras(totalLifestyleHoje)}</div></div>
   </div>`;
 
   const totaisSemana = tempoTotaisSemana();
@@ -2020,14 +2085,14 @@ function tempoHtml(){
   html += `<div class="row-sub" style="margin:18px 2px 8px;">Dashboard semanal</div>`;
 
   if (totalSemana === 0){
-    html += `<div class="empty"><span class="big">Sem registros essa semana</span>Preencha o registro do dia pra começar a comparar.</div>`;
+    html += `<div class="empty"><span class="big">Sem registros essa semana</span>Preencha o registro do dia ou use o cronômetro pra começar a comparar.</div>`;
   } else {
     html += `<div class="card" style="padding:14px;">
       ${TEMPO_PROJETOS.slice().sort((a,b)=>totaisSemana[b]-totaisSemana[a]).map(p=>{
         const pct = totalSemana > 0 ? Math.round(totaisSemana[p]/totalSemana*100) : 0;
         return `<div style="margin-bottom:12px;">
-          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
-            <span>${esc(p)}</span><span style="color:var(--text-dim);">${formatHoras(totaisSemana[p])} · ${pct}%</span>
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;gap:8px;">
+            <span>${esc(p)}</span><span style="color:var(--text-dim);white-space:nowrap;">${formatHoras(totaisSemana[p])} · ${pct}%</span>
           </div>
           <div style="height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden;">
             <div style="height:100%;width:${pct}%;background:${TEMPO_CORES[p]};"></div>
@@ -2050,6 +2115,15 @@ function tempoHtml(){
       </div>
     </div>`;
   }
+
+  const diasRestantes = Math.max(0, Math.ceil((new Date(CICLO_LIFESTYLE.fim) - new Date(hoje)) / 86400000));
+  html += `<div class="card" style="padding:14px;margin-top:12px;">
+    <div class="section-label" style="margin-top:0;">🧪 Ciclo Lifestyle</div>
+    <div style="font-size:12.5px;color:var(--text-dim);margin-bottom:8px;">Até ${formatDateShort(CICLO_LIFESTYLE.fim)} · ${diasRestantes} dias restantes pra avaliar se continua</div>
+    ${CICLO_LIFESTYLE.projetos.map(p=>`<div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;">
+      <span>${esc(p)}</span><span style="color:var(--text-dim);">${formatHoras(totaisSemana[p]||0)} essa semana</span>
+    </div>`).join('')}
+  </div>`;
 
   return html;
 }
@@ -3251,6 +3325,12 @@ function agendaForm(){
   return `<h2>Novo compromisso</h2>
     <div class="field"><label for="f-time">Horário</label><input id="f-time" type="time" value="09:00"></div>
     <div class="field"><label for="f-title">O que é</label><input id="f-title" type="text" placeholder="Ex: Reunião com o time" maxlength="60"></div>
+    <div class="field"><label for="f-area">Área</label>
+      <select id="f-area">
+        <option value="">Nenhuma</option>
+        <option value="Vida">Vida</option>
+      </select>
+    </div>
     ${sheetActions('agenda')}`;
 }
 function trabalhoForm(){
@@ -3650,7 +3730,9 @@ function wireSheet(){
       const time = document.getElementById('f-time').value;
       const title = document.getElementById('f-title').value.trim();
       if (!title) return;
-      state.agenda.push({ id: uid(), date: todayISO(), time: time || '00:00', title });
+      const areaSel = document.getElementById('f-area');
+      const area = areaSel && areaSel.value ? areaSel.value : undefined;
+      state.agenda.push({ id: uid(), date: todayISO(), time: time || '00:00', title, area });
       await persist('agenda');
     }
     if (tab === 'trabalho'){
