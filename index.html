@@ -524,12 +524,7 @@
     display:flex;align-items:center;justify-content:center;
     padding:0 3px;
   }
-  .tab[data-tab="inicio"].active{background:var(--inicio);}
-  .tab[data-tab="controle"].active{background:var(--current);}
-  .tab[data-tab="agenda"].active{background:var(--agenda);}
-  .tab[data-tab="trabalho"].active{background:var(--trabalho);}
-  .tab[data-tab="treino"].active{background:var(--treino);}
-  .tab[data-tab="financas"].active{background:var(--financas);}
+  .sidebar .tab.active, .tabbar .tab.active{background:var(--current);}
 
   .overlay{
     position:fixed;inset:0;
@@ -836,31 +831,47 @@
 <div class="phone app-hidden" id="phoneApp">
   <nav class="sidebar" id="sidebarNav">
     <div class="brand">Meu painel</div>
-    <button class="tab" data-tab="inicio" aria-label="Início">
+    <button class="tab" data-tab="central" aria-label="Central">
       <svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
-      <span class="tlabel">Início</span>
+      <span class="tlabel">Central</span>
+    </button>
+    <button class="tab" data-tab="dashboard" aria-label="Dashboard">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      <span class="tlabel">Dashboard</span>
     </button>
     <button class="tab" data-tab="controle" aria-label="Controle">
-      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg>
       <span class="tlabel">Controle</span>
+    </button>
+    <button class="tab" data-tab="crm" aria-label="CRM">
+      <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.5 3-6 7-6s7 2.5 7 6"/><circle cx="17" cy="8" r="2.5"/><path d="M16.5 14.2c2.7.5 4.5 2.6 4.5 5.8"/></svg>
+      <span class="tlabel">CRM</span>
+      <span class="badge" data-badge="crm" style="display:none;"></span>
+    </button>
+    <button class="tab" data-tab="financas" aria-label="Finanças">
+      <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg>
+      <span class="tlabel">Finanças</span>
+    </button>
+    <button class="tab" data-tab="projetos" aria-label="Projetos">
+      <svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18"/></svg>
+      <span class="tlabel">Projetos</span>
     </button>
     <button class="tab" data-tab="agenda" aria-label="Agenda">
       <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
       <span class="tlabel">Agenda</span>
       <span class="badge" data-badge="agenda" style="display:none;"></span>
     </button>
-    <button class="tab" data-tab="trabalho" aria-label="Trabalho">
-      <svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18"/></svg>
-      <span class="tlabel">Trabalho</span>
-      <span class="badge" data-badge="trabalho" style="display:none;"></span>
+    <button class="tab" data-tab="estudos" aria-label="Estudos">
+      <svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5V5.5z"/><path d="M20 18H6.5a2.5 2.5 0 0 0-2.5 2.5"/></svg>
+      <span class="tlabel">Estudos</span>
     </button>
-    <button class="tab" data-tab="treino" aria-label="Treino">
+    <button class="tab" data-tab="habitos" aria-label="Hábitos">
       <svg viewBox="0 0 24 24"><path d="M6.5 6.5 3 10l11 11 3.5-3.5M14.5 3.5 21 10M9 9l6 6M17.5 6.5l-11 11"/></svg>
-      <span class="tlabel">Treino</span>
+      <span class="tlabel">Hábitos</span>
     </button>
-    <button class="tab" data-tab="financas" aria-label="Finanças">
-      <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg>
-      <span class="tlabel">Finanças</span>
+    <button class="tab" data-tab="relatorios" aria-label="Relatórios">
+      <svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>
+      <span class="tlabel">Relatórios</span>
     </button>
   </nav>
 
@@ -868,7 +879,7 @@
     <div>
       <div class="greeting" id="greeting">Olá</div>
       <div class="date" id="dateLabel"></div>
-      <div class="section-title"><div class="bar"></div><h1 id="sectionTitle">Início</h1></div>
+      <div class="section-title"><div class="bar"></div><h1 id="sectionTitle">Central</h1></div>
     </div>
     <button class="fab-desktop" id="fabBtnDesktop" aria-label="Adicionar">+</button>
   </header>
@@ -880,28 +891,24 @@
   <main id="content"></main>
 
   <nav class="tabbar">
-    <button class="tab" data-tab="inicio" aria-label="Início">
+    <button class="tab" data-tab="central" aria-label="Central">
       <svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
-      <span class="tlabel">Início</span>
+      <span class="tlabel">Central</span>
     </button>
+    <button class="tab" data-tab="controle" aria-label="Controle">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg>
+      <span class="tlabel">Controle</span>
+    </button>
+    <button class="fab" id="fabBtn" aria-label="Adicionar">+</button>
     <button class="tab" data-tab="agenda" aria-label="Agenda">
       <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
       <span class="tlabel">Agenda</span>
       <span class="badge" data-badge="agenda" style="display:none;"></span>
     </button>
-    <button class="fab" id="fabBtn" aria-label="Adicionar">+</button>
-    <button class="tab" data-tab="trabalho" aria-label="Trabalho">
-      <svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18"/></svg>
-      <span class="tlabel">Trabalho</span>
-      <span class="badge" data-badge="trabalho" style="display:none;"></span>
-    </button>
-    <button class="tab" data-tab="treino" aria-label="Treino">
-      <svg viewBox="0 0 24 24"><path d="M6.5 6.5 3 10l11 11 3.5-3.5M14.5 3.5 21 10M9 9l6 6M17.5 6.5l-11 11"/></svg>
-      <span class="tlabel">Treino</span>
-    </button>
-    <button class="tab" data-tab="financas" aria-label="Finanças">
-      <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg>
-      <span class="tlabel">Finanças</span>
+    <button class="tab" id="btnMaisMenu" aria-label="Mais">
+      <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      <span class="tlabel">Mais</span>
+      <span class="badge" data-badge="crm" style="display:none;"></span>
     </button>
   </nav>
 
@@ -914,14 +921,14 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script>
-const COLORS = { inicio:'#22c55e', controle:'#22c55e', agenda:'#22c55e', trabalho:'#22c55e', treino:'#22c55e', financas:'#22c55e' };
-const TITLES = { inicio:'Início', controle:'Controle', agenda:'Agenda', trabalho:'Trabalho', treino:'Treino', financas:'Finanças' };
+const COLORS = { central:'#22c55e', dashboard:'#22c55e', controle:'#22c55e', crm:'#22c55e', agenda:'#22c55e', financas:'#22c55e', projetos:'#22c55e', estudos:'#22c55e', habitos:'#22c55e', relatorios:'#22c55e' };
+const TITLES = { central:'Central', dashboard:'Dashboard', controle:'Controle', crm:'CRM', agenda:'Agenda', financas:'Finanças', projetos:'Projetos', estudos:'Estudos', habitos:'Hábitos', relatorios:'Relatórios' };
 const STORAGE_KEY = {
   agenda:'agenda-events', trabalho:'trabalho-tasks', treino:'treino-logs', financas:'financas-transactions',
   projetos:'trabalho-projetos', cronograma:'trabalho-cronograma', estudos:'trabalho-estudos', caixinhas:'financas-caixinhas',
   bancos:'financas-bancos', trabalhoSessoes:'trabalho-sessoes', habitos:'vida-habitos', habitoLogs:'vida-habito-logs',
   caixaDiario:'caixa-diario-lancamentos', tempoDiario:'tempo-diario-registros', revisaoSemanal:'revisao-semanal-notas',
-  controleDia:'controle-dia-registros', missoesConcluidas:'missoes-concluidas-log'
+  controleDia:'controle-dia-registros', missoesConcluidas:'missoes-concluidas-log', crmLeads:'crm-leads'
 };
 
 const DIARIA_LOCAIS = { 'Villa Kaboom': 90, 'Mágico Festas': 80 };
@@ -952,7 +959,7 @@ const CAIXINHA_TEMPLATES = {
 const DIAS_SEMANA = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
 const SUBTAB_LABELS = { tarefas:'Tarefas', projetos:'Projetos', cronograma:'Cronograma', estudos:'Estudos', tempo:'Tempo' };
 
-let state = { agenda:[], trabalho:[], treino:[], financas:[], projetos:[], cronograma:[], estudos:[], caixinhas:[], bancos:[], trabalhoSessoes:[], habitos:[], habitoLogs:[], caixaDiario:[], tempoDiario:[], revisaoSemanal:[], controleDia:[], missoesConcluidas:[] };
+let state = { agenda:[], trabalho:[], treino:[], financas:[], projetos:[], cronograma:[], estudos:[], caixinhas:[], bancos:[], trabalhoSessoes:[], habitos:[], habitoLogs:[], caixaDiario:[], tempoDiario:[], revisaoSemanal:[], controleDia:[], missoesConcluidas:[], crmLeads:[] };
 const TEMPO_GRUPOS = [
   { chave:'manha', titulo:'🌅 Manhã', projetos:['Amazon','T11Sports','Shopee'] },
   { chave:'tarde', titulo:'🌇 Tarde', projetos:['Consultoria Endurance','Onak Hub'] },
@@ -967,12 +974,12 @@ const TEMPO_CORES = {
   'TikTok Shopping Afiliados':'#ec4899', 'Aplicativo SaaS':'#14b8a6',
 };
 const CICLO_LIFESTYLE = { fim:'2026-01-01', projetos:['TikTok Shopping Afiliados','Aplicativo SaaS'] };
-let currentTab = 'inicio';
-let trabalhoSubTab = 'tarefas';
+let currentTab = 'central';
+let trabalhoSubTab = 'painel';
 let controleSubTab = 'mensal';
 let tarefasFiltroArea = 'todas';
-const AREA_TAGS = ['Amazon','Shopee','T11','Onak','Estudo','IA'];
-const AREA_CORES = { Amazon:'#f59e0b', Shopee:'#f97316', T11:'#22c55e', Onak:'#3b82f6', Estudo:'#eab308', IA:'#ec4899' };
+const AREA_TAGS = TEMPO_PROJETOS;
+const AREA_CORES = TEMPO_CORES;
 let financasSubTab = 'diario';
 let financasFilter = 'todos';
 let currentFinType = 'diaria';
@@ -1199,8 +1206,8 @@ async function cronoFinalizar(){
     cronometro = { projeto:null, running:false, startedAt:null, accumulatedMs:0 };
     await persistCronometro();
 
-    trabalhoSubTab = 'tempo';
-    setActiveTab('trabalho');
+    trabalhoSubTab = 'painel';
+    setActiveTab('projetos');
     showToast(`✓ ${formatHoras(totalProjetoHoje)} em ${projeto} hoje`);
     return;
   }
@@ -1398,7 +1405,7 @@ function computeDashboardStats(period){
 
 function updateBadges(){
   const pendentes = state.trabalho.filter(t=>!t.done).length;
-  document.querySelectorAll('[data-badge="trabalho"]').forEach(bTrab=>{
+  document.querySelectorAll('[data-badge="projetos"]').forEach(bTrab=>{
     if (pendentes > 0){ bTrab.style.display='flex'; bTrab.textContent = pendentes; } else { bTrab.style.display='none'; }
   });
 
@@ -1407,17 +1414,26 @@ function updateBadges(){
   document.querySelectorAll('[data-badge="agenda"]').forEach(bAg=>{
     if (eventosHoje > 0){ bAg.style.display='flex'; bAg.textContent = eventosHoje; } else { bAg.style.display='none'; }
   });
+
+  const followUpsVencidos = state.crmLeads.filter(l=> l.followUp && l.followUp <= hoje).length;
+  document.querySelectorAll('[data-badge="crm"]').forEach(bCrm=>{
+    if (followUpsVencidos > 0){ bCrm.style.display='flex'; bCrm.textContent = followUpsVencidos; } else { bCrm.style.display='none'; }
+  });
 }
 
 function render(){
   const main = document.getElementById('content');
   updateBadges();
-  if (currentTab === 'inicio') return renderInicio(main);
-  if (currentTab === 'controle') return renderControle(main);
-  if (currentTab === 'agenda') return renderAgenda(main);
-  if (currentTab === 'trabalho') return renderTrabalho(main);
-  if (currentTab === 'treino') return renderTreino(main);
+  if (currentTab === 'central') return renderInicio(main);
+  if (currentTab === 'dashboard') return renderDashboard(main);
+  if (currentTab === 'controle') return renderControleNovo(main);
+  if (currentTab === 'crm') return renderCRM(main);
   if (currentTab === 'financas') return renderFinancas(main);
+  if (currentTab === 'projetos') return renderTrabalho(main);
+  if (currentTab === 'agenda') return renderAgenda(main);
+  if (currentTab === 'estudos') return renderEstudosTab(main);
+  if (currentTab === 'habitos') return renderTreino(main);
+  if (currentTab === 'relatorios') return renderRelatorios(main);
 }
 
 function habitStreak(habitId){
@@ -1632,9 +1648,9 @@ function cronogramaDiaHtml(){
 }
 
 const BLOCO_AREAS = {
-  execucao: { titulo:'Execução', legenda:'Amazon, Shopee e T11', areas:['Amazon','Shopee','T11'] },
-  operacional: { titulo:'Operacional', legenda:'Consultoria Endurance + Onak Hub', areas:['Onak'] },
-  crescimento: { titulo:'Crescimento', legenda:'Estudo + projetos de IA', areas:['Estudo','IA'] },
+  execucao: { titulo:'Execução', legenda:'Amazon, T11Sports e Shopee', areas:['Amazon','T11Sports','Shopee'] },
+  operacional: { titulo:'Operacional', legenda:'Consultoria Endurance + Onak Hub', areas:['Consultoria Endurance','Onak Hub'] },
+  crescimento: { titulo:'Crescimento', legenda:'Estudos + Lifestyle', areas:['Nutrição Endurance','Marketing Digital','TikTok Shopping Afiliados','Aplicativo SaaS'] },
 };
 
 function getControleDiaHoje(){
@@ -1655,6 +1671,16 @@ function scoreControleDia(){
   const habitosFeitos = state.habitos.filter(h=>isHabitoConcluidoHoje(h.id)).length;
   const pontosHabitos = totalHabitos > 0 ? Math.round((habitosFeitos/totalHabitos)*4) : 0; // até 4
   return { total: pontosBlocos + pontosHabitos, pontosBlocos, pontosHabitos, blocosFeitos };
+}
+
+function scoreParaData(dataISO){
+  const reg = state.controleDia.find(r=>r.data===dataISO);
+  const blocosFeitos = reg ? ['execucao','operacional','crescimento'].filter(k=>reg[k]).length : 0;
+  const pontosBlocos = blocosFeitos * 2;
+  const totalHabitos = state.habitos.length;
+  const habitosFeitos = totalHabitos > 0 ? state.habitos.filter(h=> state.habitoLogs.some(l=>l.habitoId===h.id && l.date===dataISO)).length : 0;
+  const pontosHabitos = totalHabitos > 0 ? Math.round((habitosFeitos/totalHabitos)*4) : 0;
+  return pontosBlocos + pontosHabitos;
 }
 
 function ondeEstouHtml(){
@@ -1806,7 +1832,7 @@ function renderInicio(main){
   });
 
   const gotoTarefas = main.querySelector('[data-goto-tarefas]');
-  if (gotoTarefas) gotoTarefas.addEventListener('click', ()=>{ trabalhoSubTab = 'tarefas'; setActiveTab('trabalho'); });
+  if (gotoTarefas) gotoTarefas.addEventListener('click', ()=>{ trabalhoSubTab = 'tarefas'; setActiveTab('projetos'); });
 
   main.querySelectorAll('[data-feedback-acao]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -1876,21 +1902,70 @@ function weekDotsHtml(){
   return html;
 }
 
+let agendaSubTab = 'hoje';
+
+const CRM_STATUS_COR = { novo:'var(--info)', conversa:'var(--warning)', fechado:'var(--financas)', perdido:'var(--danger)' };
+const CRM_STATUS_LABEL = { novo:'Novo', conversa:'Em conversa', fechado:'Fechado', perdido:'Perdido' };
+
+function renderCRM(main){
+  const leads = [...state.crmLeads].sort((a,b)=>{
+    if (!!a.followUp !== !!b.followUp) return a.followUp ? -1 : 1;
+    if (a.followUp && b.followUp) return a.followUp.localeCompare(b.followUp);
+    return 0;
+  });
+
+  if (leads.length === 0){
+    main.innerHTML = `<div class="empty"><span class="big">Nenhum lead ainda</span>Toque no + pra adicionar um cliente ou lead da Onak Hub / Consultoria Endurance.</div>`;
+    bindDeletes(main);
+    return;
+  }
+
+  main.innerHTML = `<div class="card">${leads.map(l=>`
+    <div class="row" style="align-items:flex-start;">
+      <div style="flex:1;">
+        <div class="row-title">${esc(l.nome)}</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">${esc(l.projeto)}</div>
+        ${l.followUp ? `<div style="font-size:11.5px;color:var(--text-dim);margin-top:2px;">Follow-up: ${formatDateShort(l.followUp)}</div>` : ''}
+      </div>
+      <span style="font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:20px;background:${CRM_STATUS_COR[l.status]}22;color:${CRM_STATUS_COR[l.status]};white-space:nowrap;">${CRM_STATUS_LABEL[l.status]}</span>
+      <button class="del-btn" data-del="crmLeads" data-id="${l.id}">✕</button>
+    </div>`).join('')}</div>`;
+  bindDeletes(main);
+}
+
 function renderAgenda(main){
+  let html = `<div class="chip-row">
+    <button class="chip ${agendaSubTab==='hoje'?'sel':''}" data-agendasub="hoje">Hoje</button>
+    <button class="chip ${agendaSubTab==='cronograma'?'sel':''}" data-agendasub="cronograma">Cronograma fixo</button>
+  </div>`;
+
+  if (agendaSubTab === 'cronograma'){
+    main.innerHTML = html + cronogramaHtml();
+    bindDeletes(main);
+    main.querySelectorAll('[data-agendasub]').forEach(chip=>{
+      chip.addEventListener('click', ()=>{ agendaSubTab = chip.dataset.agendasub; render(); });
+    });
+    return;
+  }
+
   const hoje = todayISO();
   const eventos = state.agenda.filter(e=>e.date===hoje).sort((a,b)=>a.time.localeCompare(b.time));
   if (eventos.length === 0){
-    main.innerHTML = `<div class="empty"><span class="big">Nada marcado por hoje</span>Toque no + para adicionar um compromisso.</div>`;
-    return;
+    html += `<div class="empty"><span class="big">Nada marcado por hoje</span>Toque no + para adicionar um compromisso.</div>`;
+  } else {
+    html += `<div class="card">${eventos.map(e=>`
+      <div class="row">
+        <div class="row-time">${esc(e.time)}</div>
+        ${e.area === 'Vida' ? `<span style="font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:20px;background:#94a3b822;color:#94a3b8;white-space:nowrap;">Vida</span>` : ''}
+        <div class="row-title">${esc(e.title)}</div>
+        <button class="del-btn" data-del="agenda" data-id="${e.id}">✕</button>
+      </div>`).join('')}</div>`;
   }
-  main.innerHTML = `<div class="card">${eventos.map(e=>`
-    <div class="row">
-      <div class="row-time">${esc(e.time)}</div>
-      ${e.area === 'Vida' ? `<span style="font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:20px;background:#94a3b822;color:#94a3b8;white-space:nowrap;">Vida</span>` : ''}
-      <div class="row-title">${esc(e.title)}</div>
-      <button class="del-btn" data-del="agenda" data-id="${e.id}">✕</button>
-    </div>`).join('')}</div>`;
+  main.innerHTML = html;
   bindDeletes(main);
+  main.querySelectorAll('[data-agendasub]').forEach(chip=>{
+    chip.addEventListener('click', ()=>{ agendaSubTab = chip.dataset.agendasub; render(); });
+  });
 }
 
 const PRIO_WEIGHT = { alta:0, media:1, baixa:2 };
@@ -1901,22 +1976,98 @@ const PSTATUS_NEXT = { planejado:'andamento', andamento:'concluido', concluido:'
 
 function subTabChipsHtml(){
   return `<div class="chip-row">
+    <button class="chip ${trabalhoSubTab==='painel'?'sel':''}" data-subtab="painel">Projetos</button>
     <button class="chip ${trabalhoSubTab==='tarefas'?'sel':''}" data-subtab="tarefas">Tarefas</button>
-    <button class="chip ${trabalhoSubTab==='projetos'?'sel':''}" data-subtab="projetos">Projetos</button>
-    <button class="chip ${trabalhoSubTab==='cronograma'?'sel':''}" data-subtab="cronograma">Cronograma</button>
-    <button class="chip ${trabalhoSubTab==='estudos'?'sel':''}" data-subtab="estudos">Estudos</button>
-    <button class="chip ${trabalhoSubTab==='tempo'?'sel':''}" data-subtab="tempo">Tempo</button>
+    <button class="chip ${trabalhoSubTab==='iniciativas'?'sel':''}" data-subtab="iniciativas">Iniciativas</button>
   </div>`;
 }
 
+function projetosPainelHtml(){
+  const totaisGeral = {};
+  TEMPO_PROJETOS.forEach(p=> totaisGeral[p] = 0);
+  state.tempoDiario.forEach(reg=>{
+    TEMPO_PROJETOS.forEach(p=>{ totaisGeral[p] += (reg.horas && reg.horas[p]) || 0; });
+  });
+
+  return TEMPO_GRUPOS.map(g=>`
+    <div class="row-sub" style="margin:14px 2px 6px;">${esc(g.titulo)}</div>
+    ${g.projetos.map(p=>{
+      const tarefasProjeto = state.trabalho.filter(t=>t.area===p && !t.done);
+      return `<div class="card" style="margin-bottom:10px;padding:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <div style="font-weight:600;font-size:14.5px;color:${TEMPO_CORES[p]};">${esc(p)}</div>
+          <div style="text-align:right;">
+            <div style="font-family:var(--font-mono);font-weight:600;">${formatHoras(totaisGeral[p])}</div>
+            <div style="font-size:10px;color:var(--text-dim);">total acumulado</div>
+          </div>
+        </div>
+        ${tarefasProjeto.length>0 ? `<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px;">
+          ${tarefasProjeto.slice(0,4).map(t=>`<div style="font-size:12.5px;color:var(--text-dim);padding:3px 0;">• ${esc(t.title)}</div>`).join('')}
+          ${tarefasProjeto.length>4 ? `<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">+${tarefasProjeto.length-4} tarefa(s)</div>` : ''}
+        </div>` : `<div style="margin-top:8px;font-size:12px;color:var(--text-dim);">Nenhuma tarefa pendente</div>`}
+      </div>`;
+    }).join('')}
+  `).join('');
+}
+
+function wireTempoRegistro(main){
+  const inputs = main.querySelectorAll('.tempo-input');
+  const atualizarPreview = ()=>{
+    const totalEl = document.getElementById('tempoTotalHoje');
+    let total = 0;
+    const valores = {};
+    inputs.forEach(inp=>{
+      const v = parseFloat(inp.value) || 0;
+      valores[inp.dataset.projeto] = v;
+      total += v;
+    });
+    if (totalEl) totalEl.textContent = formatHoras(total);
+    TEMPO_PROJETOS.forEach(p=>{
+      const barEl = main.querySelector(`[data-tempo-bar="${p}"]`);
+      const pctEl = main.querySelector(`[data-tempo-pct="${p}"]`);
+      const pct = total > 0 ? (valores[p] / total * 100) : 0;
+      if (barEl) barEl.style.width = pct + '%';
+      if (pctEl) pctEl.textContent = (total > 0 ? Math.round(pct) : 0) + '%';
+    });
+  };
+  inputs.forEach(inp=> inp.addEventListener('input', atualizarPreview));
+
+  const btnSalvarTempo = document.getElementById('btnSalvarTempo');
+  if (btnSalvarTempo) btnSalvarTempo.addEventListener('click', async ()=>{
+    const horas = {};
+    let total = 0;
+    inputs.forEach(inp=>{
+      const v = parseFloat(inp.value) || 0;
+      horas[inp.dataset.projeto] = v;
+      total += v;
+    });
+    if (total <= 0){ showToast('Preencha ao menos um projeto', true); return; }
+    const hoje = todayISO();
+    let registro = state.tempoDiario.find(r=>r.data === hoje);
+    if (registro) registro.horas = horas;
+    else state.tempoDiario.push({ id: uid(), data: hoje, horas });
+    await persist('tempoDiario');
+    render();
+  });
+}
+
+function renderControleNovo(main){
+  main.innerHTML = cronoWidgetHtml() + tempoRegistroDiaHtml() + tempoCategoriaDiaHtml();
+  bindDeletes(main);
+  wireCronoWidget(main);
+  wireTempoRegistro(main);
+}
+
+function renderEstudosTab(main){
+  main.innerHTML = estudosHtml();
+  bindDeletes(main);
+}
+
 function renderTrabalho(main){
-  document.getElementById('sectionTitle').textContent = SUBTAB_LABELS[trabalhoSubTab];
   let inner = '';
-  if (trabalhoSubTab === 'tarefas') inner = tarefasHtml();
-  else if (trabalhoSubTab === 'projetos') inner = projetosHtml();
-  else if (trabalhoSubTab === 'cronograma') inner = cronogramaHtml();
-  else if (trabalhoSubTab === 'estudos') inner = estudosHtml();
-  else if (trabalhoSubTab === 'tempo') inner = tempoHtml();
+  if (trabalhoSubTab === 'painel') inner = projetosPainelHtml();
+  else if (trabalhoSubTab === 'tarefas') inner = tarefasHtml();
+  else if (trabalhoSubTab === 'iniciativas') inner = projetosHtml();
 
   main.innerHTML = subTabChipsHtml() + inner;
   bindDeletes(main);
@@ -1952,7 +2103,7 @@ function renderTrabalho(main){
     });
   }
 
-  if (trabalhoSubTab === 'projetos'){
+  if (trabalhoSubTab === 'iniciativas'){
     main.querySelectorAll('[data-pstatus]').forEach(badge=>{
       badge.addEventListener('click', ()=>{
         const item = state.projetos.find(p=>p.id===badge.dataset.pstatus);
@@ -1960,47 +2111,6 @@ function renderTrabalho(main){
         persist('projetos');
         render();
       });
-    });
-  }
-
-  if (trabalhoSubTab === 'tempo'){
-    const inputs = main.querySelectorAll('.tempo-input');
-    const atualizarPreview = ()=>{
-      const totalEl = document.getElementById('tempoTotalHoje');
-      let total = 0;
-      const valores = {};
-      inputs.forEach(inp=>{
-        const v = parseFloat(inp.value) || 0;
-        valores[inp.dataset.projeto] = v;
-        total += v;
-      });
-      if (totalEl) totalEl.textContent = formatHoras(total);
-      TEMPO_PROJETOS.forEach(p=>{
-        const barEl = main.querySelector(`[data-tempo-bar="${p}"]`);
-        const pctEl = main.querySelector(`[data-tempo-pct="${p}"]`);
-        const pct = total > 0 ? (valores[p] / total * 100) : 0;
-        if (barEl) barEl.style.width = pct + '%';
-        if (pctEl) pctEl.textContent = (total > 0 ? Math.round(pct) : 0) + '%';
-      });
-    };
-    inputs.forEach(inp=> inp.addEventListener('input', atualizarPreview));
-
-    const btnSalvarTempo = document.getElementById('btnSalvarTempo');
-    if (btnSalvarTempo) btnSalvarTempo.addEventListener('click', async ()=>{
-      const horas = {};
-      let total = 0;
-      inputs.forEach(inp=>{
-        const v = parseFloat(inp.value) || 0;
-        horas[inp.dataset.projeto] = v;
-        total += v;
-      });
-      if (total <= 0){ showToast('Preencha ao menos um projeto', true); return; }
-      const hoje = todayISO();
-      let registro = state.tempoDiario.find(r=>r.data === hoje);
-      if (registro) registro.horas = horas;
-      else state.tempoDiario.push({ id: uid(), data: hoje, horas });
-      await persist('tempoDiario');
-      render();
     });
   }
 }
@@ -2030,17 +2140,14 @@ function tempoTotaisSemana(){
   return totais;
 }
 
-function tempoHtml(){
+function tempoRegistroDiaHtml(){
   const hoje = todayISO();
   const registroHoje = state.tempoDiario.find(r=>r.data === hoje);
   const valoresHoje = {};
   TEMPO_PROJETOS.forEach(p=> valoresHoje[p] = (registroHoje && registroHoje.horas && registroHoje.horas[p]) || 0);
   const totalHoje = TEMPO_PROJETOS.reduce((acc,p)=> acc + valoresHoje[p], 0);
-  const totalEstudoHoje = TEMPO_GRUPOS.find(g=>g.chave==='estudos').projetos.reduce((a,p)=>a+valoresHoje[p],0);
-  const totalLifestyleHoje = TEMPO_GRUPOS.find(g=>g.chave==='lifestyle').projetos.reduce((a,p)=>a+valoresHoje[p],0);
-  const totalTrabalhoHoje = totalHoje - totalEstudoHoje - totalLifestyleHoje;
 
-  let html = `<div class="row-sub" style="margin:2px 2px 8px;">Registro do dia</div>
+  return `<div class="row-sub" style="margin:2px 2px 8px;">Registro do dia</div>
   <div class="card" style="padding:14px;">
     ${TEMPO_GRUPOS.map(g=>`
       <div style="font-size:11px;color:var(--text-dim);margin:4px 0 8px;">${esc(g.titulo)}</div>
@@ -2069,20 +2176,33 @@ function tempoHtml(){
     </div>
     <button type="button" id="btnSalvarTempo" class="btn-save" style="width:100%;margin-top:14px;padding:13px;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;">Salvar registro do dia</button>
   </div>`;
+}
 
-  html += `<div class="row-sub" style="margin:18px 2px 8px;">Hoje por categoria</div>
+function tempoCategoriaDiaHtml(){
+  const hoje = todayISO();
+  const registroHoje = state.tempoDiario.find(r=>r.data === hoje);
+  const valoresHoje = {};
+  TEMPO_PROJETOS.forEach(p=> valoresHoje[p] = (registroHoje && registroHoje.horas && registroHoje.horas[p]) || 0);
+  const totalEstudoHoje = TEMPO_GRUPOS.find(g=>g.chave==='estudos').projetos.reduce((a,p)=>a+valoresHoje[p],0);
+  const totalLifestyleHoje = TEMPO_GRUPOS.find(g=>g.chave==='lifestyle').projetos.reduce((a,p)=>a+valoresHoje[p],0);
+  const totalHoje = TEMPO_PROJETOS.reduce((acc,p)=> acc + valoresHoje[p], 0);
+  const totalTrabalhoHoje = totalHoje - totalEstudoHoje - totalLifestyleHoje;
+
+  return `<div class="row-sub" style="margin:18px 2px 8px;">Hoje por categoria</div>
   <div class="card" style="padding:14px;display:flex;gap:10px;text-align:center;">
     <div style="flex:1;"><div style="font-size:11px;color:var(--text-dim);">Trabalho</div><div style="font-family:var(--font-mono);font-weight:600;font-size:16px;margin-top:2px;">${formatHoras(totalTrabalhoHoje)}</div></div>
     <div style="flex:1;"><div style="font-size:11px;color:var(--text-dim);">Estudo</div><div style="font-family:var(--font-mono);font-weight:600;font-size:16px;margin-top:2px;">${formatHoras(totalEstudoHoje)}</div></div>
     <div style="flex:1;"><div style="font-size:11px;color:var(--text-dim);">Lifestyle</div><div style="font-family:var(--font-mono);font-weight:600;font-size:16px;margin-top:2px;">${formatHoras(totalLifestyleHoje)}</div></div>
   </div>`;
+}
 
+function tempoDashboardSemanalHtml(){
   const totaisSemana = tempoTotaisSemana();
   const totalSemana = TEMPO_PROJETOS.reduce((acc,p)=> acc + totaisSemana[p], 0);
   const maiorFoco = TEMPO_PROJETOS.reduce((a,b)=> totaisSemana[b] > totaisSemana[a] ? b : a, TEMPO_PROJETOS[0]);
   const negligenciado = TEMPO_PROJETOS.reduce((a,b)=> totaisSemana[b] < totaisSemana[a] ? b : a, TEMPO_PROJETOS[0]);
 
-  html += `<div class="row-sub" style="margin:18px 2px 8px;">Dashboard semanal</div>`;
+  let html = `<div class="row-sub" style="margin:18px 2px 8px;">Tempo por projeto · essa semana</div>`;
 
   if (totalSemana === 0){
     html += `<div class="empty"><span class="big">Sem registros essa semana</span>Preencha o registro do dia ou use o cronômetro pra começar a comparar.</div>`;
@@ -2115,17 +2235,20 @@ function tempoHtml(){
       </div>
     </div>`;
   }
+  return html;
+}
 
+function tempoCicloLifestyleHtml(){
+  const hoje = todayISO();
+  const totaisSemana = tempoTotaisSemana();
   const diasRestantes = Math.max(0, Math.ceil((new Date(CICLO_LIFESTYLE.fim) - new Date(hoje)) / 86400000));
-  html += `<div class="card" style="padding:14px;margin-top:12px;">
+  return `<div class="card" style="padding:14px;">
     <div class="section-label" style="margin-top:0;">🧪 Ciclo Lifestyle</div>
     <div style="font-size:12.5px;color:var(--text-dim);margin-bottom:8px;">Até ${formatDateShort(CICLO_LIFESTYLE.fim)} · ${diasRestantes} dias restantes pra avaliar se continua</div>
     ${CICLO_LIFESTYLE.projetos.map(p=>`<div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;">
       <span>${esc(p)}</span><span style="color:var(--text-dim);">${formatHoras(totaisSemana[p]||0)} essa semana</span>
     </div>`).join('')}
   </div>`;
-
-  return html;
 }
 
 function tarefasHtml(){
@@ -2731,31 +2854,7 @@ function habitosMesHtml(mesKey){
   }).join('');
 }
 
-function renderControle(main){
-  let html = `<div class="chip-row">
-    <button class="chip ${controleSubTab==='mensal'?'sel':''}" data-controlesub="mensal">Mensal</button>
-    <button class="chip ${controleSubTab==='semanal'?'sel':''}" data-controlesub="semanal">Semanal</button>
-  </div>`;
-
-  if (controleSubTab === 'semanal'){
-    main.innerHTML = html + revisaoSemanalHtml();
-    bindDeletes(main);
-    main.querySelectorAll('[data-controlesub]').forEach(chip=>{
-      chip.addEventListener('click', ()=>{ controleSubTab = chip.dataset.controlesub; render(); });
-    });
-    const notasArea = document.getElementById('ajustesSemanaTexto');
-    if (notasArea){
-      notasArea.addEventListener('blur', async ()=>{
-        const semana = startOfWeekISO(todayISO());
-        let reg = state.revisaoSemanal.find(r=>r.semana === semana);
-        if (reg) reg.notas = notasArea.value;
-        else state.revisaoSemanal.push({ id: uid(), semana, notas: notasArea.value });
-        await persist('revisaoSemanal');
-      });
-    }
-    return;
-  }
-
+function renderRelatorios(main){
   const mesAtual = controleMes;
   const mesAnterior = shiftMonth(mesAtual, -1);
   const finAtual = financasResumoMes(mesAtual);
@@ -2770,7 +2869,7 @@ function renderControle(main){
   const treinosMesAnterior = state.treino.filter(l=>(l.date||'').startsWith(mesAnterior)).length;
   const pctTreinos = treinosMesAnterior !== 0 ? ((treinosMes - treinosMesAnterior)/treinosMesAnterior)*100 : (treinosMes!==0?100:0);
 
-  html += monthNavHtml(mesAtual, 'controle');
+  let html = monthNavHtml(mesAtual, 'controle');
 
   html += `<div class="kpi-grid">
     ${kpiCardHtml({ icon:'wallet', color:'var(--current)', value: formatMoney(finAtual.saldo), label:'Saldo do mês', pct: pctSaldo, hasPrev: houveMesAnterior })}
@@ -2795,11 +2894,19 @@ function renderControle(main){
     <div id="controleCategoriaLegend"></div>
   </div>`;
 
-  main.innerHTML = html;
+  html += tempoCicloLifestyleHtml();
 
-  main.querySelectorAll('[data-controlesub]').forEach(chip=>{
-    chip.addEventListener('click', ()=>{ controleSubTab = chip.dataset.controlesub; render(); });
-  });
+  const hoje = todayISO();
+  const semana = startOfWeekISO(hoje);
+  const notaAtual = state.revisaoSemanal.find(r=>r.semana === semana);
+  html += `<div class="card" style="margin-top:12px;">
+    <div class="section-label" style="margin-top:0;">Ajustes da semana atual</div>
+    <div style="font-size:12.5px;color:var(--text-dim);margin-bottom:8px;">O que funcionou, o que travou, o que muda na próxima semana.</div>
+    <textarea id="ajustesSemanaTexto" placeholder="Ex: Onak ficou de lado na quarta e quinta, preciso proteger o bloco da tarde..." style="width:100%;min-height:100px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:10px;font-family:inherit;font-size:13.5px;resize:vertical;">${notaAtual ? esc(notaAtual.notas) : ''}</textarea>
+  </div>`;
+
+  main.innerHTML = html;
+  bindDeletes(main);
 
   main.querySelectorAll('[data-monthnav]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -2812,7 +2919,157 @@ function renderControle(main){
     });
   });
 
+  const notasArea = document.getElementById('ajustesSemanaTexto');
+  if (notasArea){
+    notasArea.addEventListener('blur', async ()=>{
+      let reg = state.revisaoSemanal.find(r=>r.semana === semana);
+      if (reg) reg.notas = notasArea.value;
+      else state.revisaoSemanal.push({ id: uid(), semana, notas: notasArea.value });
+      await persist('revisaoSemanal');
+    });
+  }
+
   renderControleCharts();
+}
+
+function categoriaBreakdownSemanaCaixa(){
+  const hoje = todayISO();
+  const inicioSemana = startOfWeekISO(hoje);
+  const totals = {};
+  state.caixaDiario.filter(l=>l.tipo==='saida' && l.data>=inicioSemana && l.data<=hoje).forEach(l=>{
+    totals[l.categoria||'Outros'] = (totals[l.categoria||'Outros']||0) + l.valor;
+  });
+  const labels = Object.keys(totals).sort((a,b)=>totals[b]-totals[a]);
+  return { labels, data: labels.map(l=>totals[l]) };
+}
+
+function renderDashboard(main){
+  const hoje = todayISO();
+  const inicioSemana = startOfWeekISO(hoje);
+
+  const totalTarefas = state.trabalho.length;
+  const tarefasFeitas = state.trabalho.filter(t=>t.done).length;
+  const pctTarefas = totalTarefas > 0 ? Math.round(tarefasFeitas/totalTarefas*100) : 0;
+
+  const diasDecorridos = Math.floor((new Date(hoje) - new Date(inicioSemana))/86400000) + 1;
+  const totalHabitos = state.habitos.length;
+  const possiveisHabitos = totalHabitos * diasDecorridos;
+  const feitosHabitos = state.habitoLogs.filter(l=> l.date >= inicioSemana && l.date <= hoje).length;
+  const pctHabitos = possiveisHabitos > 0 ? Math.round(feitosHabitos/possiveisHabitos*100) : 0;
+
+  const totaisTempo = tempoTotaisSemana();
+  const totalTempoSemana = TEMPO_PROJETOS.reduce((acc,p)=>acc+totaisTempo[p],0);
+  const maiorFocoTempo = TEMPO_PROJETOS.reduce((a,b)=> totaisTempo[b] > totaisTempo[a] ? b : a, TEMPO_PROJETOS[0]);
+
+  const lancSemana = state.caixaDiario.filter(l=> l.data >= inicioSemana && l.data <= hoje);
+  const entradasSemana = lancSemana.filter(l=>l.tipo==='entrada').reduce((a,l)=>a+l.valor,0);
+  const gastosSemana = lancSemana.filter(l=>l.tipo==='saida').reduce((a,l)=>a+l.valor,0);
+
+  let html = `<div class="row-sub" style="margin:2px 2px 8px;">Semana de ${formatDateShort(inicioSemana)} até hoje</div>`;
+
+  html += comparativoMissoesHtml();
+
+  html += `<div class="kpi-grid">
+    ${kpiCardHtml({ icon:'check-circle', color:'var(--current)', value: `${tarefasFeitas}/${totalTarefas}`, label:'Tarefas concluídas', note: totalTarefas>0?`${pctTarefas}% do total`:'Nenhuma tarefa', noteColor:'var(--text-dim)' })}
+    ${kpiCardHtml({ icon:'zap', color:'var(--financas)', value: `${pctHabitos}%`, label:'Hábitos na semana', note: totalHabitos>0?`${feitosHabitos} de ${possiveisHabitos} possíveis`:'Nenhum hábito', noteColor:'var(--text-dim)' })}
+    ${kpiCardHtml({ icon:'clock', color:'var(--info)', value: formatHoras(totalTempoSemana), label:'Tempo registrado', note: totalTempoSemana>0?`Mais foco: ${maiorFocoTempo}`:'Nenhum registro', noteColor:'var(--text-dim)' })}
+    ${kpiCardHtml({ icon:'wallet', color: (entradasSemana-gastosSemana)>=0?'var(--current)':'var(--danger)', value: formatMoney(entradasSemana-gastosSemana), label:'Saldo da semana', note: `${formatMoney(entradasSemana)} entradas · ${formatMoney(gastosSemana)} gastos`, noteColor:'var(--text-dim)' })}
+  </div>`;
+
+  html += `<div class="card">
+    <div class="section-label" style="margin-top:0;">Horas por projeto · essa semana</div>
+    <div style="position:relative;height:${TEMPO_PROJETOS.length*32}px;"><canvas id="chartDashboardTempo"></canvas></div>
+  </div>`;
+
+  html += `<div class="card">
+    <div class="section-label" style="margin-top:0;">Gastos por categoria · essa semana</div>
+    <div style="position:relative;height:200px;"><canvas id="chartDashboardCategoria"></canvas></div>
+    <div id="dashboardCategoriaLegend"></div>
+  </div>`;
+
+  html += `<div class="card">
+    <div class="section-label" style="margin-top:0;">Score do dia · últimos 14 dias</div>
+    <div style="position:relative;height:170px;"><canvas id="chartDashboardScore"></canvas></div>
+  </div>`;
+
+  main.innerHTML = html;
+  bindDeletes(main);
+  renderDashboardCharts();
+}
+
+function renderDashboardCharts(){
+  const totaisSemana = tempoTotaisSemana();
+  const ordenados = TEMPO_PROJETOS.slice().sort((a,b)=>totaisSemana[b]-totaisSemana[a]);
+  const ctxTempo = document.getElementById('chartDashboardTempo');
+  if (ctxTempo && window.Chart){
+    if (window.__chartDashboardTempo) window.__chartDashboardTempo.destroy();
+    window.__chartDashboardTempo = new Chart(ctxTempo, {
+      type:'bar',
+      data:{ labels: ordenados, datasets:[{ data: ordenados.map(p=>Math.round(totaisSemana[p]*10)/10), backgroundColor: ordenados.map(p=>TEMPO_CORES[p]), borderRadius:4 }] },
+      options:{
+        indexAxis:'y',
+        maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{
+          x:{ ticks:{ color:'#8a939f', font:{ size:10 } }, grid:{ color:'#262c33' } },
+          y:{ ticks:{ color:'#8a939f', font:{ size:11 } }, grid:{ display:false } }
+        }
+      }
+    });
+  }
+
+  const catData = categoriaBreakdownSemanaCaixa();
+  const totalGastos = catData.data.reduce((a,v)=>a+v,0);
+  const ctxCat = document.getElementById('chartDashboardCategoria');
+  if (ctxCat && window.Chart){
+    if (window.__chartDashboardCategoria) window.__chartDashboardCategoria.destroy();
+    if (catData.labels.length > 0){
+      window.__chartDashboardCategoria = new Chart(ctxCat, {
+        type:'doughnut',
+        data:{ labels:catData.labels, datasets:[{ data:catData.data, backgroundColor: catData.labels.map((_,i)=>CHART_COLORS[i%CHART_COLORS.length]), borderWidth:0 }] },
+        options:{ plugins:{ legend:{ display:false }, tooltip:{ enabled:true } }, cutout:'68%', maintainAspectRatio:false }
+      });
+    }
+  }
+  const legendEl = document.getElementById('dashboardCategoriaLegend');
+  if (legendEl){
+    if (catData.labels.length === 0){
+      legendEl.innerHTML = `<div class="empty" style="padding:20px;margin-top:12px;">Nenhum gasto registrado essa semana.</div>`;
+    } else {
+      legendEl.innerHTML = catData.labels.map((l,i)=>{
+        const pct = totalGastos > 0 ? Math.round((catData.data[i]/totalGastos)*100) : 0;
+        return `<div class="row">
+          <div style="width:10px;height:10px;border-radius:50%;background:${CHART_COLORS[i%CHART_COLORS.length]};flex-shrink:0;"></div>
+          <div class="row-title" style="font-size:13px;">${esc(l)} <span style="color:var(--text-dim);">· ${pct}%</span></div>
+          <div class="tx-amount neg">${formatMoney(catData.data[i])}</div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  const hoje = todayISO();
+  const dias = [];
+  for (let i=13;i>=0;i--) dias.push(addDiasISO(hoje, -i));
+  const scores = dias.map(d=>scoreParaData(d));
+  const ctxScore = document.getElementById('chartDashboardScore');
+  if (ctxScore && window.Chart){
+    if (window.__chartDashboardScore) window.__chartDashboardScore.destroy();
+    window.__chartDashboardScore = new Chart(ctxScore, {
+      type:'line',
+      data:{
+        labels: dias.map(d=>formatDateShort(d)),
+        datasets:[{ data: scores, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.14)', fill:true, tension:0.35, pointRadius:2.5, pointBackgroundColor:'#3b82f6', pointBorderColor:'#0a0d10', pointBorderWidth:1 }]
+      },
+      options:{
+        maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{
+          x:{ ticks:{ color:'#8a939f', font:{ size:9 }, maxRotation:0 }, grid:{ display:false } },
+          y:{ min:0, max:10, ticks:{ color:'#8a939f', font:{ size:10 }, stepSize:2 }, grid:{ color:'#262c33' } }
+        }
+      }
+    });
+  }
 }
 
 function addDiasISO(dataISO, dias){
@@ -3294,16 +3551,19 @@ function openAddMenu(){
 function handleAddClick(){
   const sheet = document.getElementById('sheet');
   currentEditId = null;
-  if (currentTab === 'inicio' || currentTab === 'controle'){ openAddMenu(); return; }
-  else if (currentTab === 'agenda') sheet.innerHTML = agendaForm();
-  else if (currentTab === 'trabalho'){
-    if (trabalhoSubTab === 'tarefas') sheet.innerHTML = trabalhoForm();
-    else if (trabalhoSubTab === 'projetos') sheet.innerHTML = projetoForm();
-    else if (trabalhoSubTab === 'cronograma') sheet.innerHTML = cronogramaForm();
-    else if (trabalhoSubTab === 'estudos') sheet.innerHTML = estudoForm();
-    else if (trabalhoSubTab === 'tempo') return;
+  if (currentTab === 'central'){ openAddMenu(); return; }
+  else if (currentTab === 'dashboard' || currentTab === 'controle' || currentTab === 'relatorios'){ return; }
+  else if (currentTab === 'crm'){ sheet.innerHTML = crmForm(); }
+  else if (currentTab === 'agenda'){
+    sheet.innerHTML = agendaSubTab === 'cronograma' ? cronogramaForm() : agendaForm();
   }
-  else if (currentTab === 'treino'){
+  else if (currentTab === 'projetos'){
+    if (trabalhoSubTab === 'tarefas') sheet.innerHTML = trabalhoForm();
+    else if (trabalhoSubTab === 'iniciativas') sheet.innerHTML = projetoForm();
+    else { return; }
+  }
+  else if (currentTab === 'estudos'){ sheet.innerHTML = estudoForm(); }
+  else if (currentTab === 'habitos'){
     sheet.innerHTML = treinoSubTab === 'habitos' ? habitoForm() : treinoForm();
   }
   else if (currentTab === 'financas'){
@@ -3320,6 +3580,52 @@ document.getElementById('fabBtn').addEventListener('click', handleAddClick);
 const fabBtnDesktop = document.getElementById('fabBtnDesktop');
 if (fabBtnDesktop) fabBtnDesktop.addEventListener('click', handleAddClick);
 
+function maisMenuHtml(){
+  const itens = [
+    { tab:'dashboard', label:'Dashboard' },
+    { tab:'crm', label:'CRM' },
+    { tab:'projetos', label:'Projetos' },
+    { tab:'estudos', label:'Estudos' },
+    { tab:'habitos', label:'Hábitos' },
+    { tab:'relatorios', label:'Relatórios' },
+  ];
+  return `<h2>Mais</h2>
+    <div class="card">${itens.map(i=>`<div class="row" data-goto-tab="${i.tab}" style="cursor:pointer;">
+      <div class="row-title">${esc(i.label)}</div>
+    </div>`).join('')}</div>
+    <div class="sheet-actions"><button type="button" class="btn-cancel" id="cancelBtn" style="flex:1;">Fechar</button></div>`;
+}
+const btnMaisMenu = document.getElementById('btnMaisMenu');
+if (btnMaisMenu) btnMaisMenu.addEventListener('click', ()=>{
+  const sheet = document.getElementById('sheet');
+  sheet.innerHTML = maisMenuHtml();
+  document.getElementById('cancelBtn').addEventListener('click', closeSheet);
+  sheet.querySelectorAll('[data-goto-tab]').forEach(row=>{
+    row.addEventListener('click', ()=>{ setActiveTab(row.dataset.gotoTab); closeSheet(); });
+  });
+  openSheet();
+});
+
+function crmForm(){
+  return `<h2>Novo lead / cliente</h2>
+    <div class="field"><label for="f-nome">Nome</label><input id="f-nome" type="text" placeholder="Ex: Maria Silva" maxlength="60"></div>
+    <div class="field"><label for="f-projeto">Projeto</label>
+      <select id="f-projeto">
+        <option value="Onak Hub">Onak Hub</option>
+        <option value="Consultoria Endurance">Consultoria Endurance</option>
+      </select>
+    </div>
+    <div class="field"><label>Status</label>
+      <div class="toggle-group" id="crmstatus-toggle">
+        <button type="button" data-val="novo" class="sel" style="background:var(--info);color:#0a0d10;">Novo</button>
+        <button type="button" data-val="conversa">Em conversa</button>
+        <button type="button" data-val="fechado">Fechado</button>
+        <button type="button" data-val="perdido">Perdido</button>
+      </div>
+    </div>
+    <div class="field"><label for="f-followup">Próximo follow-up (opcional)</label><input id="f-followup" type="date"></div>
+    ${sheetActions('crm')}`;
+}
 
 function agendaForm(){
   return `<h2>Novo compromisso</h2>
@@ -3639,6 +3945,19 @@ function wireSheet(){
     applyDefaults();
   }
 
+  const crmStatusToggle = document.getElementById('crmstatus-toggle');
+  if (crmStatusToggle){
+    const colorFor = { novo:'var(--info)', conversa:'var(--warning)', fechado:'var(--financas)', perdido:'var(--danger)' };
+    crmStatusToggle.querySelectorAll('button').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        crmStatusToggle.querySelectorAll('button').forEach(o=>{ o.classList.remove('sel'); o.style.background=''; o.style.color=''; });
+        b.classList.add('sel');
+        b.style.background = colorFor[b.dataset.val];
+        b.style.color = '#0a0d10';
+      });
+    });
+  }
+
   const movTypeToggle = document.getElementById('movtype-toggle');
   if (movTypeToggle){
     const colorFor = { add:'var(--financas)', sub:'var(--danger)' };
@@ -3711,6 +4030,20 @@ function wireSheet(){
 
   document.getElementById('saveBtn').addEventListener('click', async ()=>{
     const tab = document.getElementById('saveBtn').dataset.savetab;
+    if (tab === 'crm'){
+      const nome = document.getElementById('f-nome').value.trim();
+      if (!nome) return;
+      const projeto = document.getElementById('f-projeto').value;
+      const statusBtn = document.querySelector('#crmstatus-toggle button.sel');
+      const status = statusBtn ? statusBtn.dataset.val : 'novo';
+      const followUp = document.getElementById('f-followup').value || null;
+      state.crmLeads.push({ id: uid(), nome, projeto, status, followUp });
+      await persist('crmLeads');
+      if (followUp){
+        state.agenda.push({ id: uid(), date: followUp, time:'09:00', title:`Follow-up: ${nome} (${projeto})` });
+        await persist('agenda');
+      }
+    }
     if (tab === 'caixa-avancado'){
       const typeBtn = document.querySelector('#caixatype-toggle button.sel');
       const tipo = typeBtn ? typeBtn.dataset.val : 'entrada';
@@ -3872,7 +4205,7 @@ async function startApp(){
   await seedHabitosPadrao();
   relatoriosMes = currentMonthKey();
   controleMes = currentMonthKey();
-  setActiveTab('inicio');
+  setActiveTab('central');
 }
 
 function tryLogin(){
