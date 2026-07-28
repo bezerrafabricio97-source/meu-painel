@@ -928,7 +928,7 @@ const STORAGE_KEY = {
   projetos:'trabalho-projetos', cronograma:'trabalho-cronograma', estudos:'trabalho-estudos', caixinhas:'financas-caixinhas',
   bancos:'financas-bancos', trabalhoSessoes:'trabalho-sessoes', habitos:'vida-habitos', habitoLogs:'vida-habito-logs',
   caixaDiario:'caixa-diario-lancamentos', tempoDiario:'tempo-diario-registros', revisaoSemanal:'revisao-semanal-notas',
-  controleDia:'controle-dia-registros', missoesConcluidas:'missoes-concluidas-log', crmLeads:'crm-leads'
+  controleDia:'controle-dia-registros', missoesConcluidas:'missoes-concluidas-log', crmLeads:'crm-leads', checkDiario:'check-diario-registros'
 };
 
 const DIARIA_LOCAIS = { 'Villa Kaboom': 90, 'Mágico Festas': 80 };
@@ -959,21 +959,21 @@ const CAIXINHA_TEMPLATES = {
 const DIAS_SEMANA = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
 const SUBTAB_LABELS = { tarefas:'Tarefas', projetos:'Projetos', cronograma:'Cronograma', estudos:'Estudos', tempo:'Tempo' };
 
-let state = { agenda:[], trabalho:[], treino:[], financas:[], projetos:[], cronograma:[], estudos:[], caixinhas:[], bancos:[], trabalhoSessoes:[], habitos:[], habitoLogs:[], caixaDiario:[], tempoDiario:[], revisaoSemanal:[], controleDia:[], missoesConcluidas:[], crmLeads:[] };
+let state = { agenda:[], trabalho:[], treino:[], financas:[], projetos:[], cronograma:[], estudos:[], caixinhas:[], bancos:[], trabalhoSessoes:[], habitos:[], habitoLogs:[], caixaDiario:[], tempoDiario:[], revisaoSemanal:[], controleDia:[], missoesConcluidas:[], crmLeads:[], checkDiario:[] };
 const TEMPO_GRUPOS = [
-  { chave:'manha', titulo:'🌅 Manhã', projetos:['Amazon','T11Sports','Shopee'] },
-  { chave:'tarde', titulo:'🌇 Tarde', projetos:['Consultoria Endurance','Onak Hub'] },
-  { chave:'estudos', titulo:'📚 Estudos', projetos:['Nutrição Endurance','Marketing Digital'] },
-  { chave:'lifestyle', titulo:'🧪 Lifestyle', projetos:['TikTok Shopping Afiliados','Aplicativo SaaS'] },
+  { chave:'base', titulo:'🔵 Base (todo dia)', projetos:['Amazon','T11Sports','Shopee'] },
+  { chave:'tiktok', titulo:'🟣 TikTok (seg/qua/sex)', projetos:['TikTok'] },
+  { chave:'casual', titulo:'🟠 Linha Casual (ter/qui)', projetos:['Casual'] },
+  { chave:'onak', titulo:'⚫ Onak (ter/qui à noite)', projetos:['Onak'] },
 ];
 const TEMPO_PROJETOS = TEMPO_GRUPOS.flatMap(g=>g.projetos);
 const TEMPO_CORES = {
   Amazon:'#f59e0b', T11Sports:'#22c55e', Shopee:'#f97316',
-  'Consultoria Endurance':'#3b82f6', 'Onak Hub':'#0ea5e9',
-  'Nutrição Endurance':'#eab308', 'Marketing Digital':'#a855f7',
-  'TikTok Shopping Afiliados':'#ec4899', 'Aplicativo SaaS':'#14b8a6',
+  TikTok:'#ec4899', Casual:'#f97316', Onak:'#3b82f6',
 };
-const CICLO_LIFESTYLE = { fim:'2026-01-01', projetos:['TikTok Shopping Afiliados','Aplicativo SaaS'] };
+const DIAS_TIKTOK = [1,3,5]; // seg, qua, sex
+const DIAS_CASUAL_ONAK = [2,4]; // ter, qui
+const METAS_SEMANAIS = { TikTok:3, Casual:2, Onak:2 };
 let currentTab = 'central';
 let trabalhoSubTab = 'painel';
 let controleSubTab = 'mensal';
@@ -1647,40 +1647,63 @@ function cronogramaDiaHtml(){
   ).join('');
 }
 
-const BLOCO_AREAS = {
-  execucao: { titulo:'Execução', legenda:'Amazon, T11Sports e Shopee', areas:['Amazon','T11Sports','Shopee'] },
-  operacional: { titulo:'Operacional', legenda:'Consultoria Endurance + Onak Hub', areas:['Consultoria Endurance','Onak Hub'] },
-  crescimento: { titulo:'Crescimento', legenda:'Estudos + Lifestyle', areas:['Nutrição Endurance','Marketing Digital','TikTok Shopping Afiliados','Aplicativo SaaS'] },
-};
+function itensAplicaveis(dataISO){
+  const dow = new Date(dataISO+'T00:00:00').getDay();
+  const itens = [
+    { chave:'amazon', label:'Amazon' },
+    { chave:'t11', label:'T11Sports' },
+    { chave:'shopee', label:'Shopee' },
+  ];
+  if (DIAS_TIKTOK.includes(dow)) itens.push({ chave:'tiktok', label:'TikTok' });
+  if (DIAS_CASUAL_ONAK.includes(dow)) itens.push({ chave:'casual', label:'Linha Casual' });
+  if (DIAS_CASUAL_ONAK.includes(dow)) itens.push({ chave:'onak', label:'Onak' });
+  return itens;
+}
+
+function getCheckDiarioHoje(){
+  const hoje = todayISO();
+  let reg = state.checkDiario.find(r=>r.data===hoje);
+  if (!reg){
+    reg = { id: uid(), data: hoje, amazon:false, t11:false, shopee:false, tiktok:false, casual:false, onak:false, tiktokVideoPrincipal:'', tiktokVariacoes:[] };
+    state.checkDiario.push(reg);
+  }
+  return reg;
+}
+
+function scoreCheckDiario(dataISO){
+  const reg = state.checkDiario.find(r=>r.data===dataISO);
+  const itens = itensAplicaveis(dataISO);
+  const feitos = reg ? itens.filter(i=>reg[i.chave]).length : 0;
+  return { feitos, total: itens.length, pct: itens.length>0 ? Math.round(feitos/itens.length*100) : 0 };
+}
 
 function getControleDiaHoje(){
   const hoje = todayISO();
   let reg = state.controleDia.find(r=>r.data===hoje);
   if (!reg){
-    reg = { id: uid(), data: hoje, execucao:false, operacional:false, crescimento:false, p1:'', p2:'', p3:'' };
+    reg = { id: uid(), data: hoje, p1:'', p2:'', p3:'' };
     state.controleDia.push(reg);
   }
   return reg;
 }
 
 function scoreControleDia(){
-  const reg = getControleDiaHoje();
-  const blocosFeitos = ['execucao','operacional','crescimento'].filter(k=>reg[k]).length;
-  const pontosBlocos = blocosFeitos * 2; // até 6
+  const hoje = todayISO();
+  const { feitos, total } = scoreCheckDiario(hoje);
+  const pontosCheck = total > 0 ? Math.round((feitos/total)*6) : 0; // até 6
   const totalHabitos = state.habitos.length;
   const habitosFeitos = state.habitos.filter(h=>isHabitoConcluidoHoje(h.id)).length;
   const pontosHabitos = totalHabitos > 0 ? Math.round((habitosFeitos/totalHabitos)*4) : 0; // até 4
-  return { total: pontosBlocos + pontosHabitos, pontosBlocos, pontosHabitos, blocosFeitos };
+  return { total: pontosCheck + pontosHabitos, pontosBlocos: pontosCheck, pontosHabitos, blocosFeitos: feitos };
 }
 
 function scoreParaData(dataISO){
-  const reg = state.controleDia.find(r=>r.data===dataISO);
-  const blocosFeitos = reg ? ['execucao','operacional','crescimento'].filter(k=>reg[k]).length : 0;
-  const pontosBlocos = blocosFeitos * 2;
+  const { feitos, total } = scoreCheckDiario(dataISO);
+  const pontosCheck = total > 0 ? Math.round((feitos/total)*6) : 0;
   const totalHabitos = state.habitos.length;
   const habitosFeitos = totalHabitos > 0 ? state.habitos.filter(h=> state.habitoLogs.some(l=>l.habitoId===h.id && l.date===dataISO)).length : 0;
   const pontosHabitos = totalHabitos > 0 ? Math.round((habitosFeitos/totalHabitos)*4) : 0;
-  return pontosBlocos + pontosHabitos;
+  return pontosCheck + pontosHabitos;
 }
 
 function ondeEstouHtml(){
@@ -1713,27 +1736,78 @@ function ondeEstouHtml(){
   </div>`;
 }
 
-function oQueFazerHojeHtml(){
-  const reg = getControleDiaHoje();
-  return Object.entries(BLOCO_AREAS).map(([chave, bloco])=>{
-    const tarefas = state.trabalho.filter(t=>!t.done && bloco.areas.includes(t.area));
-    return `<div class="card" style="margin-bottom:12px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-        <div class="row-title">${esc(bloco.titulo)}</div>
-        <label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-dim);cursor:pointer;">
-          <input type="checkbox" data-bloco-check="${chave}" ${reg[chave]?'checked':''}> concluí hoje
-        </label>
+function alertasHtml(){
+  const hoje = todayISO();
+  const dow = new Date(hoje+'T00:00:00').getDay();
+  const reg = getCheckDiarioHoje();
+  const alertas = [];
+
+  if (!reg.amazon || !reg.t11 || !reg.shopee){
+    const faltando = ['amazon','t11','shopee'].filter(k=>!reg[k]).map(k=>({amazon:'Amazon',t11:'T11Sports',shopee:'Shopee'}[k]));
+    alertas.push({ nivel:'forte', texto:`Base incompleta hoje: falta ${faltando.join(', ')}.` });
+  }
+  if (DIAS_TIKTOK.includes(dow) && !reg.tiktok){
+    alertas.push({ nivel:'medio', texto:'TikTok é hoje e ainda não foi marcado.' });
+  }
+
+  const inicioSemana = startOfWeekISO(hoje);
+  const regsSemana = state.checkDiario.filter(r=> r.data >= inicioSemana && r.data <= hoje);
+  const tiktokSemana = regsSemana.filter(r=>r.tiktok).length;
+  if (tiktokSemana < METAS_SEMANAIS.TikTok && dow >= 5){
+    alertas.push({ nivel:'medio', texto:`Só ${tiktokSemana}/${METAS_SEMANAIS.TikTok} TikToks essa semana — faltam ${METAS_SEMANAIS.TikTok - tiktokSemana}.` });
+  }
+
+  if (alertas.length === 0) return '';
+  return `<div class="row-sub" style="margin:14px 2px 6px;">Alertas</div>
+    ${alertas.map(a=>`<div class="card" style="padding:12px 14px;margin-bottom:8px;border:1px solid ${a.nivel==='forte'?'var(--danger)':'var(--warning)'};background:${a.nivel==='forte'?'rgba(239,68,68,0.08)':'rgba(245,158,11,0.08)'};">
+      <div style="font-size:13px;color:${a.nivel==='forte'?'#fca5a5':'#fcd34d'};">${a.nivel==='forte'?'🚨':'⚠️'} ${esc(a.texto)}</div>
+    </div>`).join('')}`;
+}
+
+function tiktokVariacoesHtml(reg){
+  return `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">Vídeo principal de hoje</div>
+    <input id="tiktokVideoPrincipal" type="text" value="${esc(reg.tiktokVideoPrincipal||'')}" placeholder="Ex: Unboxing produto X" maxlength="80"
+      style="width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:8px 10px;font-size:13px;margin-bottom:10px;">
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">Variações (${reg.tiktokVariacoes.length})</div>
+    ${reg.tiktokVariacoes.map((v,idx)=>`<div class="row" style="padding:6px 0;">
+      <div style="flex:1;">
+        <div style="font-size:13px;">${esc(v.nome)}</div>
+        ${v.obs ? `<div style="font-size:11.5px;color:var(--text-dim);">${esc(v.obs)}</div>` : ''}
       </div>
-      <div style="font-size:12px;color:var(--text-dim);margin:2px 0 10px;">${esc(bloco.legenda)}</div>
-      ${tarefas.length === 0 ? `<div style="font-size:12.5px;color:var(--text-dim);">Nenhuma tarefa pendente nessa área.</div>` :
-        tarefas.map(t=>`<div class="row" style="padding:8px 0;">
-          <div class="checkbox" data-toggle="${t.id}" role="checkbox" aria-checked="false" tabindex="0">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#14171d" stroke-width="3"><path d="M5 12l5 5L19 7"/></svg>
-          </div>
-          <div class="row-title" style="flex:1;font-size:13.5px;">${esc(t.title)}</div>
-        </div>`).join('')}
-    </div>`;
-  }).join('');
+      <button type="button" class="del-btn" data-del-variacao="${idx}">✕</button>
+    </div>`).join('')}
+    <button type="button" id="btnAddVariacao" class="chip" style="margin-top:6px;">+ Variação</button>
+  </div>`;
+}
+
+function checkDiarioHtml(){
+  const hoje = todayISO();
+  const reg = getCheckDiarioHoje();
+  const itens = itensAplicaveis(hoje);
+  const { feitos, total } = scoreCheckDiario(hoje);
+  const label = total===0 ? '' : feitos===total ? 'Dia perfeito' : (feitos/total)>=0.6 ? 'Médio' : 'Fraco';
+
+  return `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div class="row-title">Check diário</div>
+      <div style="font-family:var(--font-mono);font-weight:700;font-size:15px;">${feitos}/${total} <span style="font-size:11px;color:var(--text-dim);font-weight:500;">${esc(label)}</span></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${itens.map(i=>{
+        const feito = !!reg[i.chave];
+        return `<button type="button" data-check-item="${i.chave}"
+          style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-radius:12px;border:none;cursor:pointer;
+          background:${feito?'rgba(34,197,94,0.15)':'rgba(239,68,68,0.12)'};
+          color:${feito?'#22c55e':'#ef4444'};font-weight:600;font-size:14.5px;">
+          <span>${esc(i.label)}</span>
+          <span>${feito?'✔️':'❌'}</span>
+        </button>`;
+      }).join('')}
+    </div>
+    ${reg.tiktok ? tiktokVariacoesHtml(reg) : ''}
+  </div>
+  ${alertasHtml()}`;
 }
 
 function controleDoDiaHtml(){
@@ -1785,8 +1859,8 @@ function renderInicio(main){
   html += `<div class="section-label">Cronograma do dia</div>`;
   html += cronogramaDiaHtml();
 
-  html += `<div class="section-label">O que fazer hoje</div>`;
-  html += oQueFazerHojeHtml();
+  html += `<div class="section-label">Check diário</div>`;
+  html += checkDiarioHtml();
 
   html += `<div class="section-label">Controle do dia</div>`;
   html += controleDoDiaHtml();
@@ -1838,7 +1912,7 @@ function renderInicio(main){
     btn.addEventListener('click', ()=>{
       const acao = btn.dataset.feedbackAcao;
       if (acao === 'crono-estudo' || acao === 'crono-trabalho'){
-        const projetoPadrao = acao === 'crono-estudo' ? TEMPO_GRUPOS.find(g=>g.chave==='estudos').projetos[0] : TEMPO_GRUPOS.find(g=>g.chave==='manha').projetos[0];
+        const projetoPadrao = acao === 'crono-estudo' ? TEMPO_GRUPOS.find(g=>g.chave==='tiktok').projetos[0] : TEMPO_GRUPOS.find(g=>g.chave==='base').projetos[0];
         if (!cronometro.running && !cronometro.projeto){ cronoSetProjeto(projetoPadrao); cronoStart(); }
         render();
         requestAnimationFrame(()=>{ document.getElementById('cronoCard')?.scrollIntoView({ behavior:'smooth', block:'center' }); });
@@ -1860,11 +1934,38 @@ function renderInicio(main){
     });
   }
 
-  main.querySelectorAll('[data-bloco-check]').forEach(chk=>{
-    chk.addEventListener('change', async ()=>{
-      const reg = getControleDiaHoje();
-      reg[chk.dataset.blocoCheck] = chk.checked;
-      await persist('controleDia');
+  main.querySelectorAll('[data-check-item]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const reg = getCheckDiarioHoje();
+      const chave = btn.dataset.checkItem;
+      reg[chave] = !reg[chave];
+      await persist('checkDiario');
+      render();
+    });
+  });
+
+  const tiktokVideoInput = document.getElementById('tiktokVideoPrincipal');
+  if (tiktokVideoInput){
+    tiktokVideoInput.addEventListener('blur', async ()=>{
+      const reg = getCheckDiarioHoje();
+      reg.tiktokVideoPrincipal = tiktokVideoInput.value;
+      await persist('checkDiario');
+    });
+  }
+  const btnAddVariacao = document.getElementById('btnAddVariacao');
+  if (btnAddVariacao){
+    btnAddVariacao.addEventListener('click', ()=>{
+      const sheetEl = document.getElementById('sheet');
+      sheetEl.innerHTML = variacaoForm();
+      wireSheet();
+      openSheet();
+    });
+  }
+  main.querySelectorAll('[data-del-variacao]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const reg = getCheckDiarioHoje();
+      reg.tiktokVariacoes.splice(parseInt(btn.dataset.delVariacao,10), 1);
+      await persist('checkDiario');
       render();
     });
   });
@@ -1915,7 +2016,7 @@ function renderCRM(main){
   });
 
   if (leads.length === 0){
-    main.innerHTML = `<div class="empty"><span class="big">Nenhum lead ainda</span>Toque no + pra adicionar um cliente ou lead da Onak Hub / Consultoria Endurance.</div>`;
+    main.innerHTML = `<div class="empty"><span class="big">Nenhum lead ainda</span>Toque no + pra adicionar um cliente ou lead da Onak / Linha Casual.</div>`;
     bindDeletes(main);
     return;
   }
@@ -2183,16 +2284,13 @@ function tempoCategoriaDiaHtml(){
   const registroHoje = state.tempoDiario.find(r=>r.data === hoje);
   const valoresHoje = {};
   TEMPO_PROJETOS.forEach(p=> valoresHoje[p] = (registroHoje && registroHoje.horas && registroHoje.horas[p]) || 0);
-  const totalEstudoHoje = TEMPO_GRUPOS.find(g=>g.chave==='estudos').projetos.reduce((a,p)=>a+valoresHoje[p],0);
-  const totalLifestyleHoje = TEMPO_GRUPOS.find(g=>g.chave==='lifestyle').projetos.reduce((a,p)=>a+valoresHoje[p],0);
-  const totalHoje = TEMPO_PROJETOS.reduce((acc,p)=> acc + valoresHoje[p], 0);
-  const totalTrabalhoHoje = totalHoje - totalEstudoHoje - totalLifestyleHoje;
 
   return `<div class="row-sub" style="margin:18px 2px 8px;">Hoje por categoria</div>
-  <div class="card" style="padding:14px;display:flex;gap:10px;text-align:center;">
-    <div style="flex:1;"><div style="font-size:11px;color:var(--text-dim);">Trabalho</div><div style="font-family:var(--font-mono);font-weight:600;font-size:16px;margin-top:2px;">${formatHoras(totalTrabalhoHoje)}</div></div>
-    <div style="flex:1;"><div style="font-size:11px;color:var(--text-dim);">Estudo</div><div style="font-family:var(--font-mono);font-weight:600;font-size:16px;margin-top:2px;">${formatHoras(totalEstudoHoje)}</div></div>
-    <div style="flex:1;"><div style="font-size:11px;color:var(--text-dim);">Lifestyle</div><div style="font-family:var(--font-mono);font-weight:600;font-size:16px;margin-top:2px;">${formatHoras(totalLifestyleHoje)}</div></div>
+  <div class="card" style="padding:14px;display:flex;gap:10px;text-align:center;flex-wrap:wrap;">
+    ${TEMPO_GRUPOS.map(g=>{
+      const total = g.projetos.reduce((a,p)=>a+valoresHoje[p],0);
+      return `<div style="flex:1;min-width:70px;"><div style="font-size:11px;color:var(--text-dim);">${esc(g.titulo.replace(/^\S+\s/,''))}</div><div style="font-family:var(--font-mono);font-weight:600;font-size:16px;margin-top:2px;">${formatHoras(total)}</div></div>`;
+    }).join('')}
   </div>`;
 }
 
@@ -2236,19 +2334,6 @@ function tempoDashboardSemanalHtml(){
     </div>`;
   }
   return html;
-}
-
-function tempoCicloLifestyleHtml(){
-  const hoje = todayISO();
-  const totaisSemana = tempoTotaisSemana();
-  const diasRestantes = Math.max(0, Math.ceil((new Date(CICLO_LIFESTYLE.fim) - new Date(hoje)) / 86400000));
-  return `<div class="card" style="padding:14px;">
-    <div class="section-label" style="margin-top:0;">🧪 Ciclo Lifestyle</div>
-    <div style="font-size:12.5px;color:var(--text-dim);margin-bottom:8px;">Até ${formatDateShort(CICLO_LIFESTYLE.fim)} · ${diasRestantes} dias restantes pra avaliar se continua</div>
-    ${CICLO_LIFESTYLE.projetos.map(p=>`<div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;">
-      <span>${esc(p)}</span><span style="color:var(--text-dim);">${formatHoras(totaisSemana[p]||0)} essa semana</span>
-    </div>`).join('')}
-  </div>`;
 }
 
 function tarefasHtml(){
@@ -2894,8 +2979,6 @@ function renderRelatorios(main){
     <div id="controleCategoriaLegend"></div>
   </div>`;
 
-  html += tempoCicloLifestyleHtml();
-
   const hoje = todayISO();
   const semana = startOfWeekISO(hoje);
   const notaAtual = state.revisaoSemanal.find(r=>r.semana === semana);
@@ -2943,6 +3026,28 @@ function categoriaBreakdownSemanaCaixa(){
   return { labels, data: labels.map(l=>totals[l]) };
 }
 
+let dashboardPeriodo = 'semana7';
+const PERIODO_LABELS = { hoje:'Hoje', ontem:'Ontem', semana7:'Últimos 7 dias', mes:'Este mês' };
+
+function periodoRangeDatas(periodo){
+  const hoje = todayISO();
+  if (periodo === 'hoje') return { inicio: hoje, fim: hoje };
+  if (periodo === 'ontem'){ const ontem = addDiasISO(hoje,-1); return { inicio: ontem, fim: ontem }; }
+  if (periodo === 'mes') return { inicio: hoje.slice(0,7)+'-01', fim: hoje };
+  return { inicio: addDiasISO(hoje,-6), fim: hoje }; // semana7 (padrão)
+}
+
+function tempoTotaisPeriodo(inicio, fim){
+  const totais = {};
+  TEMPO_PROJETOS.forEach(p=> totais[p] = 0);
+  state.tempoDiario.forEach(reg=>{
+    if (reg.data >= inicio && reg.data <= fim){
+      TEMPO_PROJETOS.forEach(p=>{ totais[p] += (reg.horas && reg.horas[p]) || 0; });
+    }
+  });
+  return totais;
+}
+
 function renderDashboard(main){
   const hoje = todayISO();
   const inicioSemana = startOfWeekISO(hoje);
@@ -2976,8 +3081,33 @@ function renderDashboard(main){
     ${kpiCardHtml({ icon:'wallet', color: (entradasSemana-gastosSemana)>=0?'var(--current)':'var(--danger)', value: formatMoney(entradasSemana-gastosSemana), label:'Saldo da semana', note: `${formatMoney(entradasSemana)} entradas · ${formatMoney(gastosSemana)} gastos`, noteColor:'var(--text-dim)' })}
   </div>`;
 
+  const inicioSemana2 = startOfWeekISO(hoje);
+  const regsSemanaCheck = state.checkDiario.filter(r=> r.data >= inicioSemana2 && r.data <= hoje);
+  const tiktokFeitos = regsSemanaCheck.filter(r=>r.tiktok).length;
+  const casualFeitos = regsSemanaCheck.filter(r=>r.casual).length;
+  const onakFeitos = regsSemanaCheck.filter(r=>r.onak).length;
+
   html += `<div class="card">
-    <div class="section-label" style="margin-top:0;">Horas por projeto · essa semana</div>
+    <div class="section-label" style="margin-top:0;">Execução vs meta · essa semana</div>
+    ${[['TikTok',tiktokFeitos,METAS_SEMANAIS.TikTok],['Linha Casual',casualFeitos,METAS_SEMANAIS.Casual],['Onak',onakFeitos,METAS_SEMANAIS.Onak]].map(([label,feito,meta])=>{
+      const pct = Math.min(100, Math.round(feito/meta*100));
+      const cor = feito>=meta ? 'var(--financas)' : pct>=50 ? 'var(--warning)' : 'var(--danger)';
+      return `<div style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+          <span>${esc(label)}</span><span style="color:var(--text-dim);">${feito}/${meta} sessões</span>
+        </div>
+        <div style="height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${cor};"></div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+
+  html += `<div class="card">
+    <div class="section-label" style="margin-top:0;">Horas por projeto</div>
+    <div class="chip-row" id="dashboardPeriodoChips" style="margin-bottom:10px;">
+      ${Object.keys(PERIODO_LABELS).map(p=>`<button class="chip ${dashboardPeriodo===p?'sel':''}" data-periodo="${p}">${PERIODO_LABELS[p]}</button>`).join('')}
+    </div>
     <div style="position:relative;height:${TEMPO_PROJETOS.length*32}px;"><canvas id="chartDashboardTempo"></canvas></div>
   </div>`;
 
@@ -2994,11 +3124,18 @@ function renderDashboard(main){
 
   main.innerHTML = html;
   bindDeletes(main);
+  main.querySelectorAll('[data-periodo]').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      dashboardPeriodo = chip.dataset.periodo;
+      render();
+    });
+  });
   renderDashboardCharts();
 }
 
 function renderDashboardCharts(){
-  const totaisSemana = tempoTotaisSemana();
+  const range = periodoRangeDatas(dashboardPeriodo);
+  const totaisSemana = tempoTotaisPeriodo(range.inicio, range.fim);
   const ordenados = TEMPO_PROJETOS.slice().sort((a,b)=>totaisSemana[b]-totaisSemana[a]);
   const ctxTempo = document.getElementById('chartDashboardTempo');
   if (ctxTempo && window.Chart){
@@ -3606,13 +3743,20 @@ if (btnMaisMenu) btnMaisMenu.addEventListener('click', ()=>{
   openSheet();
 });
 
+function variacaoForm(){
+  return `<h2>Nova variação</h2>
+    <div class="field"><label for="f-nome">Nome da variação</label><input id="f-nome" type="text" placeholder="Ex: Hook diferente" maxlength="60"></div>
+    <div class="field"><label for="f-obs">Observação</label><input id="f-obs" type="text" placeholder="Ex: CTA no início" maxlength="120"></div>
+    ${sheetActions('variacao')}`;
+}
+
 function crmForm(){
   return `<h2>Novo lead / cliente</h2>
     <div class="field"><label for="f-nome">Nome</label><input id="f-nome" type="text" placeholder="Ex: Maria Silva" maxlength="60"></div>
     <div class="field"><label for="f-projeto">Projeto</label>
       <select id="f-projeto">
-        <option value="Onak Hub">Onak Hub</option>
-        <option value="Consultoria Endurance">Consultoria Endurance</option>
+        <option value="Onak">Onak</option>
+        <option value="Casual">Linha Casual</option>
       </select>
     </div>
     <div class="field"><label>Status</label>
@@ -4030,6 +4174,14 @@ function wireSheet(){
 
   document.getElementById('saveBtn').addEventListener('click', async ()=>{
     const tab = document.getElementById('saveBtn').dataset.savetab;
+    if (tab === 'variacao'){
+      const nome = document.getElementById('f-nome').value.trim();
+      if (!nome) return;
+      const obs = document.getElementById('f-obs').value.trim();
+      const reg = getCheckDiarioHoje();
+      reg.tiktokVariacoes.push({ nome, obs });
+      await persist('checkDiario');
+    }
     if (tab === 'crm'){
       const nome = document.getElementById('f-nome').value.trim();
       if (!nome) return;
