@@ -873,6 +873,10 @@
       <svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>
       <span class="tlabel">Relatórios</span>
     </button>
+    <button class="tab" data-tab="futuro" aria-label="Futuro">
+      <svg viewBox="0 0 24 24"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>
+      <span class="tlabel">Futuro</span>
+    </button>
   </nav>
 
   <header>
@@ -921,8 +925,8 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script>
-const COLORS = { central:'#22c55e', dashboard:'#22c55e', controle:'#22c55e', crm:'#22c55e', agenda:'#22c55e', financas:'#22c55e', projetos:'#22c55e', estudos:'#22c55e', habitos:'#22c55e', relatorios:'#22c55e' };
-const TITLES = { central:'Central', dashboard:'Dashboard', controle:'Controle', crm:'CRM', agenda:'Agenda', financas:'Finanças', projetos:'Projetos', estudos:'Estudos', habitos:'Hábitos', relatorios:'Relatórios' };
+const COLORS = { central:'#22c55e', dashboard:'#22c55e', controle:'#22c55e', crm:'#22c55e', agenda:'#22c55e', financas:'#22c55e', projetos:'#22c55e', estudos:'#22c55e', habitos:'#22c55e', relatorios:'#22c55e', futuro:'#22c55e' };
+const TITLES = { central:'Central', dashboard:'Dashboard', controle:'Controle', crm:'CRM', agenda:'Agenda', financas:'Finanças', projetos:'Projetos', estudos:'Estudos', habitos:'Hábitos', relatorios:'Relatórios', futuro:'Projetos Futuros' };
 const STORAGE_KEY = {
   agenda:'agenda-events', trabalho:'trabalho-tasks', treino:'treino-logs', financas:'financas-transactions',
   projetos:'trabalho-projetos', cronograma:'trabalho-cronograma', estudos:'trabalho-estudos', caixinhas:'financas-caixinhas',
@@ -961,19 +965,20 @@ const SUBTAB_LABELS = { tarefas:'Tarefas', projetos:'Projetos', cronograma:'Cron
 
 let state = { agenda:[], trabalho:[], treino:[], financas:[], projetos:[], cronograma:[], estudos:[], caixinhas:[], bancos:[], trabalhoSessoes:[], habitos:[], habitoLogs:[], caixaDiario:[], tempoDiario:[], revisaoSemanal:[], controleDia:[], missoesConcluidas:[], crmLeads:[], checkDiario:[] };
 const TEMPO_GRUPOS = [
-  { chave:'base', titulo:'🔵 Base (todo dia)', projetos:['Amazon','T11Sports','Shopee'] },
-  { chave:'tiktok', titulo:'🟣 TikTok (seg/qua/sex)', projetos:['TikTok'] },
-  { chave:'casual', titulo:'🟠 Linha Casual (ter/qui)', projetos:['Casual'] },
-  { chave:'onak', titulo:'⚫ Onak (ter/qui à noite)', projetos:['Onak'] },
+  { chave:'manha', titulo:'🌅 Manhã', projetos:['Shopee','Marca Própria'] },
+  { chave:'tarde', titulo:'🌇 Tarde', projetos:['Amazon','T11Sports'] },
+  { chave:'noite', titulo:'🌙 Noite (1h)', projetos:['TikTok Shopping Afiliado','Onak Hub'] },
 ];
 const TEMPO_PROJETOS = TEMPO_GRUPOS.flatMap(g=>g.projetos);
 const TEMPO_CORES = {
-  Amazon:'#f59e0b', T11Sports:'#22c55e', Shopee:'#f97316',
-  TikTok:'#ec4899', Casual:'#f97316', Onak:'#3b82f6',
+  Shopee:'#f97316', 'Marca Própria':'#f59e0b',
+  Amazon:'#eab308', T11Sports:'#22c55e',
+  'TikTok Shopping Afiliado':'#ec4899', 'Onak Hub':'#3b82f6',
 };
-const DIAS_TIKTOK = [1,3,5]; // seg, qua, sex
-const DIAS_CASUAL_ONAK = [2,4]; // ter, qui
-const METAS_SEMANAIS = { TikTok:3, Casual:2, Onak:2 };
+const DIAS_TIKTOK = [1,3,5]; // seg, qua, sex -> TikTok Shopping Afiliado
+const DIAS_CASUAL_ONAK = [2,4]; // ter, qui -> Onak Hub
+const METAS_SEMANAIS = { 'TikTok Shopping Afiliado':3, 'Onak Hub':2 };
+const METAS_HORAS_SEMANAIS = { Shopee:24, 'Marca Própria':14, Amazon:24, T11Sports:14, 'TikTok Shopping Afiliado':3, 'Onak Hub':2 };
 let currentTab = 'central';
 let trabalhoSubTab = 'painel';
 let controleSubTab = 'mensal';
@@ -1434,6 +1439,7 @@ function render(){
   if (currentTab === 'estudos') return renderEstudosTab(main);
   if (currentTab === 'habitos') return renderTreino(main);
   if (currentTab === 'relatorios') return renderRelatorios(main);
+  if (currentTab === 'futuro') return renderFuturo(main);
 }
 
 function habitStreak(habitId){
@@ -1650,13 +1656,13 @@ function cronogramaDiaHtml(){
 function itensAplicaveis(dataISO){
   const dow = new Date(dataISO+'T00:00:00').getDay();
   const itens = [
+    { chave:'shopee', label:'Shopee' },
+    { chave:'marcapropria', label:'Marca Própria' },
     { chave:'amazon', label:'Amazon' },
     { chave:'t11', label:'T11Sports' },
-    { chave:'shopee', label:'Shopee' },
   ];
-  if (DIAS_TIKTOK.includes(dow)) itens.push({ chave:'tiktok', label:'TikTok' });
-  if (DIAS_CASUAL_ONAK.includes(dow)) itens.push({ chave:'casual', label:'Linha Casual' });
-  if (DIAS_CASUAL_ONAK.includes(dow)) itens.push({ chave:'onak', label:'Onak' });
+  if (DIAS_TIKTOK.includes(dow)) itens.push({ chave:'tiktok', label:'TikTok Shopping Afiliado' });
+  if (DIAS_CASUAL_ONAK.includes(dow)) itens.push({ chave:'onak', label:'Onak Hub' });
   return itens;
 }
 
@@ -1664,7 +1670,7 @@ function getCheckDiarioHoje(){
   const hoje = todayISO();
   let reg = state.checkDiario.find(r=>r.data===hoje);
   if (!reg){
-    reg = { id: uid(), data: hoje, amazon:false, t11:false, shopee:false, tiktok:false, casual:false, onak:false, tiktokVideoPrincipal:'', tiktokVariacoes:[] };
+    reg = { id: uid(), data: hoje, shopee:false, marcapropria:false, amazon:false, t11:false, tiktok:false, onak:false, tiktokVideoPrincipal:'', tiktokVariacoes:[] };
     state.checkDiario.push(reg);
   }
   return reg;
@@ -1701,14 +1707,8 @@ function execucaoDoDiaHtml(){
   const registroHoje = state.tempoDiario.find(r=>r.data===hoje);
   const valores = {};
   TEMPO_PROJETOS.forEach(p=> valores[p] = (registroHoje && registroHoje.horas && registroHoje.horas[p]) || 0);
-  const outros = (valores['T11Sports']||0) + (valores['Casual']||0) + (valores['Onak']||0);
   const total = TEMPO_PROJETOS.reduce((a,p)=>a+valores[p],0);
-  const linhas = [
-    { label:'Amazon', valor:valores['Amazon']||0, cor:TEMPO_CORES['Amazon'] },
-    { label:'Shopee', valor:valores['Shopee']||0, cor:TEMPO_CORES['Shopee'] },
-    { label:'TikTok', valor:valores['TikTok']||0, cor:TEMPO_CORES['TikTok'] },
-    { label:'Outros', valor:outros, cor:'#64748b' },
-  ];
+  const linhas = TEMPO_PROJETOS.map(p=>({ label:p, valor:valores[p], cor:TEMPO_CORES[p] }));
   return `<div class="card">
     ${linhas.map(l=>{
       const pct = total>0 ? Math.round(l.valor/total*100) : 0;
@@ -1783,19 +1783,46 @@ function alertasHtml(){
   const reg = getCheckDiarioHoje();
   const alertas = [];
 
-  if (!reg.amazon || !reg.t11 || !reg.shopee){
-    const faltando = ['amazon','t11','shopee'].filter(k=>!reg[k]).map(k=>({amazon:'Amazon',t11:'T11Sports',shopee:'Shopee'}[k]));
+  const diarios = ['shopee','marcapropria','amazon','t11'];
+  if (diarios.some(k=>!reg[k])){
+    const faltando = diarios.filter(k=>!reg[k]).map(k=>({shopee:'Shopee',marcapropria:'Marca Própria',amazon:'Amazon',t11:'T11Sports'}[k]));
     alertas.push({ nivel:'forte', texto:`Base incompleta hoje: falta ${faltando.join(', ')}.` });
   }
   if (DIAS_TIKTOK.includes(dow) && !reg.tiktok){
-    alertas.push({ nivel:'medio', texto:'TikTok é hoje e ainda não foi marcado.' });
+    alertas.push({ nivel:'medio', texto:'TikTok Shopping Afiliado é hoje e ainda não foi marcado.' });
+  }
+  if (DIAS_CASUAL_ONAK.includes(dow) && !reg.onak){
+    alertas.push({ nivel:'medio', texto:'Onak Hub é hoje à noite e ainda não foi marcado.' });
   }
 
   const inicioSemana = startOfWeekISO(hoje);
   const regsSemana = state.checkDiario.filter(r=> r.data >= inicioSemana && r.data <= hoje);
   const tiktokSemana = regsSemana.filter(r=>r.tiktok).length;
-  if (tiktokSemana < METAS_SEMANAIS.TikTok && dow >= 5){
-    alertas.push({ nivel:'medio', texto:`Só ${tiktokSemana}/${METAS_SEMANAIS.TikTok} TikToks essa semana — faltam ${METAS_SEMANAIS.TikTok - tiktokSemana}.` });
+  const onakSemana = regsSemana.filter(r=>r.onak).length;
+  if (tiktokSemana < METAS_SEMANAIS['TikTok Shopping Afiliado'] && dow >= 5){
+    alertas.push({ nivel:'medio', texto:`Só ${tiktokSemana}/${METAS_SEMANAIS['TikTok Shopping Afiliado']} TikToks essa semana.` });
+  }
+  if (onakSemana < METAS_SEMANAIS['Onak Hub'] && dow >= 5){
+    alertas.push({ nivel:'medio', texto:`Só ${onakSemana}/${METAS_SEMANAIS['Onak Hub']} sessões de Onak Hub essa semana.` });
+  }
+
+  const cincoDiasAtras = addDiasISO(hoje, -5);
+  const horasRecentes = {};
+  TEMPO_PROJETOS.forEach(p=> horasRecentes[p]=0);
+  state.tempoDiario.filter(r=> r.data >= cincoDiasAtras && r.data <= hoje).forEach(r=>{
+    TEMPO_PROJETOS.forEach(p=>{ horasRecentes[p] += (r.horas && r.horas[p]) || 0; });
+  });
+  const negligenciados = TEMPO_PROJETOS.filter(p=> horasRecentes[p] === 0);
+  if (negligenciados.length > 0){
+    alertas.push({ nivel:'medio', texto:`Sem nenhuma hora registrada nos últimos 5 dias: ${negligenciados.join(', ')}.` });
+  }
+
+  const semanaPassadaInicio = addDiasISO(inicioSemana, -7);
+  const regsSemanaPassada = state.checkDiario.filter(r=> r.data >= semanaPassadaInicio && r.data < inicioSemana);
+  const consistenciaAtual = regsSemana.length>0 ? regsSemana.filter(r=>{ const it=itensAplicaveis(r.data); return it.every(i=>r[i.chave]); }).length / regsSemana.length : 0;
+  const consistenciaPassada = regsSemanaPassada.length>0 ? regsSemanaPassada.filter(r=>{ const it=itensAplicaveis(r.data); return it.every(i=>r[i.chave]); }).length / regsSemanaPassada.length : null;
+  if (consistenciaPassada !== null && consistenciaAtual < consistenciaPassada - 0.15){
+    alertas.push({ nivel:'medio', texto:'Sua consistência caiu em relação à semana passada.' });
   }
 
   if (alertas.length === 0) return '';
@@ -1828,20 +1855,20 @@ function statusDoDiaHtml(){
   const { feitos, total } = scoreCheckDiario(hoje);
   const label = total===0 ? '' : feitos===total ? 'Dia perfeito 🎉' : (feitos/total)>=0.6 ? 'Médio' : 'Fraco';
 
-  const baseItens = [{chave:'amazon',label:'Amazon'},{chave:'t11',label:'T11'},{chave:'shopee',label:'Shopee'}];
-  const outrosItens = itensAplicaveis(hoje).filter(i=>!['amazon','t11','shopee'].includes(i.chave));
+  const baseItens = [{chave:'shopee',label:'Shopee'},{chave:'marcapropria',label:'Marca Própria'},{chave:'amazon',label:'Amazon'},{chave:'t11',label:'T11'}];
+  const outrosItens = itensAplicaveis(hoje).filter(i=>!['shopee','marcapropria','amazon','t11'].includes(i.chave));
 
   return `<div class="card">
     <div style="text-align:center;margin-bottom:18px;">
       <div style="font-family:var(--font-mono);font-size:42px;font-weight:700;line-height:1;">${feitos}/${total}</div>
       <div style="font-size:12.5px;color:var(--text-dim);margin-top:4px;">${esc(label)}</div>
     </div>
-    <div style="font-size:11px;color:var(--text-dim);letter-spacing:.04em;margin-bottom:6px;">BASE</div>
-    <div style="display:flex;gap:8px;margin-bottom:${outrosItens.length>0?'14px':'0'};">
+    <div style="font-size:11px;color:var(--text-dim);letter-spacing:.04em;margin-bottom:6px;">BASE (TODO DIA)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:${outrosItens.length>0?'14px':'0'};">
       ${baseItens.map(i=>{
         const feito = !!reg[i.chave];
         return `<button type="button" data-check-item="${i.chave}"
-          style="flex:1;padding:12px 4px;border-radius:10px;border:none;cursor:pointer;
+          style="padding:12px 4px;border-radius:10px;border:none;cursor:pointer;
           background:${feito?'rgba(34,197,94,0.15)':'rgba(239,68,68,0.12)'};color:${feito?'#22c55e':'#ef4444'};font-weight:600;font-size:12.5px;">
           ${esc(i.label)}
         </button>`;
@@ -2130,8 +2157,48 @@ function wireTempoRegistro(main){
   });
 }
 
+function historicoHorasHtml(){
+  const hoje = todayISO();
+  const dias = [];
+  for (let i=6;i>=0;i--) dias.push(addDiasISO(hoje,-i));
+  const totaisPorDia = dias.map(d=>{
+    const reg = state.tempoDiario.find(r=>r.data===d);
+    return reg && reg.horas ? Object.values(reg.horas).reduce((a,v)=>a+v,0) : 0;
+  });
+  const totalSemana = totaisPorDia.reduce((a,v)=>a+v,0);
+  const ontem = totaisPorDia[totaisPorDia.length-2] || 0;
+  const hojeTotal = totaisPorDia[totaisPorDia.length-1] || 0;
+  const diffOntem = hojeTotal - ontem;
+  const maiorValor = Math.max(...totaisPorDia, 1);
+
+  return `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div class="section-label" style="margin-top:0;">Histórico de horas · 7 dias</div>
+      <div style="text-align:right;">
+        <div style="font-size:11px;color:var(--text-dim);">Total semanal</div>
+        <div style="font-family:var(--font-mono);font-weight:700;font-size:16px;">${formatHoras(totalSemana)}</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-end;gap:6px;height:90px;margin-bottom:6px;">
+      ${totaisPorDia.map((v,idx)=>{
+        const h = Math.max(4, Math.round((v/maiorValor)*80));
+        const ehHoje = idx === totaisPorDia.length-1;
+        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;">
+          <div style="width:100%;max-width:26px;height:${h}px;border-radius:4px 4px 0 0;background:${ehHoje?'var(--current)':'var(--surface-2)'};"></div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="display:flex;gap:6px;">
+      ${dias.map(d=>`<div style="flex:1;text-align:center;font-size:10px;color:var(--text-dim);">${formatDateShort(d)}</div>`).join('')}
+    </div>
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:12.5px;color:var(--text-dim);">
+      Hoje: ${formatHoras(hojeTotal)} ${ontem>0 || hojeTotal>0 ? `(${diffOntem>=0?'+':''}${formatHoras(Math.abs(diffOntem)).replace('h',diffOntem>=0?'h a mais':'h a menos')} que ontem)` : ''}
+    </div>
+  </div>`;
+}
+
 function renderControleNovo(main){
-  main.innerHTML = cronoWidgetHtml() + tempoRegistroDiaHtml() + tempoCategoriaDiaHtml();
+  main.innerHTML = cronoWidgetHtml() + tempoRegistroDiaHtml() + tempoCategoriaDiaHtml() + historicoHorasHtml();
   bindDeletes(main);
   wireCronoWidget(main);
   wireTempoRegistro(main);
@@ -2382,18 +2449,40 @@ function estudosHtml(){
   const now = new Date();
   const startWeek = new Date(now); startWeek.setDate(now.getDate() - now.getDay());
   const startStr = startWeek.toISOString().slice(0,10);
-  const totalSemana = state.estudos.filter(l=>l.date >= startStr).reduce((a,l)=>a+(l.duracao||0),0);
+  const logsSemana = state.estudos.filter(l=>l.date >= startStr);
+  const totalSemana = logsSemana.reduce((a,l)=>a+(l.duracao||0),0);
+
+  const porCategoria = {};
+  Object.keys(ESTUDO_CATEGORIAS).forEach(c=> porCategoria[c]=0);
+  logsSemana.forEach(l=>{ if (porCategoria[l.categoria] !== undefined) porCategoria[l.categoria] += (l.duracao||0); });
 
   let html = `<div class="stat-pill">📚 ${formatDuracao(totalSemana)} de estudo esta semana</div>`;
+
+  html += `<div class="card" style="margin-top:10px;">
+    ${Object.keys(ESTUDO_CATEGORIAS).map(c=>{
+      const min = porCategoria[c];
+      const pct = totalSemana>0 ? Math.round(min/totalSemana*100) : 0;
+      return `<div style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+          <span>${esc(c)}</span><span style="color:var(--text-dim);">${formatDuracao(min)}</span>
+        </div>
+        <div style="height:6px;border-radius:4px;background:var(--surface-2);overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:var(--info);"></div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+
   if (logs.length === 0){
-    html += `<div class="empty"><span class="big">Nenhum estudo registrado</span>Toque no + para registrar uma sessão de estudo.</div>`;
+    html += `<div class="empty"><span class="big">Nenhum estudo registrado</span>Toque no + para registrar sua sessão de 1h.</div>`;
   } else {
     html += `<div class="card">${logs.map(l=>`
-      <div class="row">
+      <div class="row" style="align-items:flex-start;">
         <div class="row-time">${formatDateShort(l.date)}</div>
         <div style="flex:1">
-          <div class="row-title">${esc(l.materia)}</div>
-          <div class="row-sub">${formatDuracao(l.duracao)}</div>
+          <div class="row-title">${esc(l.subcategoria || l.materia || '')}</div>
+          <div class="row-sub">${esc(l.categoria||'')} · ${formatDuracao(l.duracao)}</div>
+          ${l.nota ? `<div style="font-size:12px;color:var(--text-dim);margin-top:2px;">${esc(l.nota)}</div>` : ''}
         </div>
         <button class="del-btn" data-del="estudos" data-id="${l.id}">✕</button>
       </div>`).join('')}</div>`;
@@ -2455,7 +2544,7 @@ function treinoLogHtml(){
   return html;
 }
 
-const HABITOS_PADRAO = ['Acordar 05:30', 'Beber 3L de água', 'Comer 1 fruta', 'Zero refrigerante', 'Organizar a casa'];
+const HABITOS_PADRAO = ['Acordar 06:00', 'Beber 2,5L de água', 'Comer 2 frutas', 'Zero refrigerante', 'Organizar a casa'];
 
 async function seedHabitosPadrao(){
   const flagKey = LS_PREFIX + 'seed-habitos-v1';
@@ -2466,6 +2555,27 @@ async function seedHabitosPadrao(){
     HABITOS_PADRAO.forEach(nome=> state.habitos.push({ id: uid(), nome }));
     await persist('habitos');
   }
+  try{ localStorage.setItem(flagKey, '1'); }catch(e){}
+}
+
+async function atualizarHabitosRotinaV2(){
+  const flagKey = LS_PREFIX + 'seed-habitos-v2';
+  try{
+    if (localStorage.getItem(flagKey)) return;
+  }catch(e){ return; }
+
+  const renomear = { 'Acordar 05:30':'Acordar 06:00 (dormir 23h)', 'Beber 3L de água':'Beber 2,5L de água', 'Comer 1 fruta':'Comer 2 frutas' };
+  Object.entries(renomear).forEach(([antigo, novo])=>{
+    const h = state.habitos.find(x=>x.nome===antigo);
+    if (h) h.nome = novo;
+  });
+
+  const adicionar = ['Máx. 4 cafés', 'Ler 5 páginas', 'Trabalhar 6h+'];
+  adicionar.forEach(nome=>{
+    if (!state.habitos.some(h=>h.nome===nome)) state.habitos.push({ id: uid(), nome });
+  });
+
+  await persist('habitos');
   try{ localStorage.setItem(flagKey, '1'); }catch(e){}
 }
 
@@ -2534,123 +2644,39 @@ function finSubTabChipsHtml(){
 const FIN_SUB_TITLES = { diario:'Caixa diário', mov:'Finanças', caixinhas:'Caixinhas', mensal:'Mensal', relatorios:'Relatórios' };
 
 function renderFinancas(main){
-  document.getElementById('sectionTitle').textContent = FIN_SUB_TITLES[financasSubTab];
-  let inner;
-  if (financasSubTab === 'diario') inner = caixaDiarioHtml();
-  else if (financasSubTab === 'mov') inner = movHtml();
-  else if (financasSubTab === 'caixinhas') inner = caixinhasHtml();
-  else if (financasSubTab === 'mensal') inner = mensalHtml();
-  else inner = relatoriosHtml();
-
-  main.innerHTML = finSubTabChipsHtml() + inner;
+  main.innerHTML = caixaDiarioHtml();
   bindDeletes(main);
 
-  main.querySelectorAll('[data-finsub]').forEach(chip=>{
-    chip.addEventListener('click', ()=>{
-      financasSubTab = chip.dataset.finsub;
+  const quickInput = document.getElementById('quickValor');
+  const quickSave = (tipo)=>{
+    const valor = parseFloat(quickInput.value) || 0;
+    if (valor <= 0){ quickInput.focus(); return; }
+    const registro = { id: uid(), tipo, valor, data: todayISO() };
+    if (tipo === 'saida') registro.categoria = 'Outros';
+    state.caixaDiario.push(registro);
+    (async ()=>{
+      await persist('caixaDiario');
       render();
+      const freshInput = document.getElementById('quickValor');
+      if (freshInput) freshInput.focus();
+    })();
+  };
+  const btnQE = document.getElementById('btnQuickEntrada');
+  if (btnQE) btnQE.addEventListener('click', ()=> quickSave('entrada'));
+  const btnQG = document.getElementById('btnQuickGasto');
+  if (btnQG) btnQG.addEventListener('click', ()=> quickSave('saida'));
+  if (quickInput){
+    quickInput.addEventListener('keydown', (ev)=>{
+      if (ev.key === 'Enter') quickSave('entrada');
     });
-  });
-
-  if (financasSubTab === 'diario'){
-    const quickInput = document.getElementById('quickValor');
-    const quickSave = (tipo)=>{
-      const valor = parseFloat(quickInput.value) || 0;
-      if (valor <= 0){ quickInput.focus(); return; }
-      const registro = { id: uid(), tipo, valor, data: todayISO() };
-      if (tipo === 'saida') registro.categoria = 'Outros';
-      state.caixaDiario.push(registro);
-      (async ()=>{
-        await persist('caixaDiario');
-        if (tipo === 'entrada'){
-          aplicarCaixinhasAutomatico(valor);
-          await persist('caixinhas');
-        }
-        render();
-        const freshInput = document.getElementById('quickValor');
-        if (freshInput) freshInput.focus();
-      })();
-    };
-    const btnQE = document.getElementById('btnQuickEntrada');
-    if (btnQE) btnQE.addEventListener('click', ()=> quickSave('entrada'));
-    const btnQG = document.getElementById('btnQuickGasto');
-    if (btnQG) btnQG.addEventListener('click', ()=> quickSave('saida'));
-    if (quickInput){
-      quickInput.addEventListener('keydown', (ev)=>{
-        if (ev.key === 'Enter') quickSave('entrada');
-      });
-    }
-    const btnAvancado = document.getElementById('btnCaixaAvancado');
-    if (btnAvancado) btnAvancado.addEventListener('click', ()=>{
-      const sheet = document.getElementById('sheet');
-      sheet.innerHTML = caixaAvancadoForm();
-      wireSheet();
-      openSheet();
-    });
-  } else if (financasSubTab === 'mov'){
-    main.querySelectorAll('[data-filter]').forEach(chip=>{
-      chip.addEventListener('click', ()=>{
-        financasFilter = chip.dataset.filter;
-        render();
-      });
-    });
-    main.querySelectorAll('[data-toggle-status]').forEach(badge=>{
-      badge.addEventListener('click', (ev)=>{
-        ev.stopPropagation();
-        const item = state.financas.find(t=>t.id===badge.dataset.toggleStatus);
-        if (item.status === 'pendente'){
-          item.status = 'recebido';
-          aplicarDistribuicao(item);
-        } else {
-          item.status = 'pendente';
-          reverterDistribuicao(item);
-        }
-        persist('financas');
-        persist('caixinhas');
-        render();
-      });
-    });
-    main.querySelectorAll('[data-edit]').forEach(btn=>{
-      btn.addEventListener('click', (ev)=>{
-        ev.stopPropagation();
-        openEditFinanca(btn.dataset.edit);
-      });
-    });
-  } else if (financasSubTab === 'caixinhas'){
-    main.querySelectorAll('[data-mov]').forEach(btn=>{
-      btn.addEventListener('click', (ev)=>{
-        ev.stopPropagation();
-        currentCaixinhaId = btn.dataset.mov;
-        const sheet = document.getElementById('sheet');
-        const c = state.caixinhas.find(x=>x.id===currentCaixinhaId);
-        sheet.innerHTML = caixinhaMovForm(c);
-        wireSheet();
-        openSheet();
-      });
-    });
-  } else if (financasSubTab === 'mensal'){
-    const editBtn = document.getElementById('editBancosBtn');
-    if (editBtn){
-      editBtn.addEventListener('click', ()=>{
-        const sheet = document.getElementById('sheet');
-        sheet.innerHTML = bancosForm();
-        wireSheet();
-        openSheet();
-      });
-    }
-  } else {
-    main.querySelectorAll('[data-monthnav]').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        const [alvo, dir] = btn.dataset.monthnav.split(':');
-        if (alvo === 'relatorios'){
-          const novo = shiftMonth(relatoriosMes, dir==='next'?1:-1);
-          if (novo <= currentMonthKey()) relatoriosMes = novo;
-        }
-        render();
-      });
-    });
-    renderCharts();
   }
+  const btnAvancado = document.getElementById('btnCaixaAvancado');
+  if (btnAvancado) btnAvancado.addEventListener('click', ()=>{
+    const sheet = document.getElementById('sheet');
+    sheet.innerHTML = caixaAvancadoForm();
+    wireSheet();
+    openSheet();
+  });
 }
 
 const CHART_COLORS = ['#ef4444','#f59e0b','#eab308','#3b82f6','#a78bfa','#ec4899','#14b8a6','#f97316','#64748b','#84cc16','#22c55e'];
@@ -2780,15 +2806,15 @@ function monthNavHtml(mesKey, attr){
 }
 
 function financasResumoMes(mesKey){
-  const entradas = state.financas.filter(t=>(t.tipo==='diaria'||t.tipo==='venda') && (t.data||'').startsWith(mesKey)).reduce((a,t)=>a+t.valor,0);
-  const gastos = state.financas.filter(t=>t.tipo==='gasto' && (t.data||'').startsWith(mesKey)).reduce((a,t)=>a+t.valor,0);
+  const entradas = state.caixaDiario.filter(t=>t.tipo==='entrada' && (t.data||'').startsWith(mesKey)).reduce((a,t)=>a+t.valor,0);
+  const gastos = state.caixaDiario.filter(t=>t.tipo==='saida' && (t.data||'').startsWith(mesKey)).reduce((a,t)=>a+t.valor,0);
   return { entradas, gastos, saldo: entradas - gastos };
 }
 
 function categoriaBreakdownMes(mesKey){
   const totals = {};
-  state.financas.filter(t=>t.tipo==='gasto' && (t.data||'').startsWith(mesKey)).forEach(t=>{
-    totals[t.categoria] = (totals[t.categoria]||0) + t.valor;
+  state.caixaDiario.filter(t=>t.tipo==='saida' && (t.data||'').startsWith(mesKey)).forEach(t=>{
+    totals[t.categoria||'Outros'] = (totals[t.categoria||'Outros']||0) + t.valor;
   });
   const labels = Object.keys(totals).sort((a,b)=>totals[b]-totals[a]);
   return { labels, data: labels.map(l=>totals[l]) };
@@ -2813,8 +2839,8 @@ function evolucaoMensal(){
     months.push({ key: d.toISOString().slice(0,7), label: d.toLocaleDateString('pt-BR',{month:'short'}) });
   }
   const data = months.map(m=>{
-    const entradas = state.financas.filter(t=>(t.tipo==='diaria'||t.tipo==='venda') && (t.data||'').startsWith(m.key)).reduce((a,t)=>a+t.valor,0);
-    const gastos = state.financas.filter(t=>t.tipo==='gasto' && (t.data||'').startsWith(m.key)).reduce((a,t)=>a+t.valor,0);
+    const entradas = state.caixaDiario.filter(t=>t.tipo==='entrada' && (t.data||'').startsWith(m.key)).reduce((a,t)=>a+t.valor,0);
+    const gastos = state.caixaDiario.filter(t=>t.tipo==='saida' && (t.data||'').startsWith(m.key)).reduce((a,t)=>a+t.valor,0);
     return entradas - gastos;
   });
   return { labels: months.map(m=>m.label), data };
@@ -2917,12 +2943,37 @@ function habitosMesHtml(mesKey){
   }).join('');
 }
 
+const PROJETOS_FUTUROS = [
+  { nome:'Agência de IA', detalhe:'Copy + Creator', meta:'R$1.000/mês mínimo' },
+  { nome:'Prestação de serviço', detalhe:'Tráfego Pago / Marketing', meta:'R$1.000/mês mínimo' },
+  { nome:'Consultoria Endurance', detalhe:'Ecossistema Endurance', meta:'R$1.000/mês mínimo' },
+];
+
+function renderFuturo(main){
+  main.innerHTML = `
+  <div class="card" style="margin-bottom:14px;">
+    <div class="section-label" style="margin-top:0;">Objetivo principal</div>
+    <div style="font-size:13.5px;color:var(--text-dim);line-height:1.5;">
+      Substituir o emprego atual. Cada fonte de renda gerando no mínimo <strong style="color:var(--text);">R$1.000/mês</strong>.
+      Construir negócios próprios + prestação de serviço, trabalhando de forma remota e escalável.
+    </div>
+  </div>
+  <div class="row-sub" style="margin:2px 2px 8px;">Projetos em avaliação</div>
+  ${PROJETOS_FUTUROS.map(p=>`
+    <div class="card" style="margin-bottom:10px;">
+      <div class="row-title">${esc(p.nome)}</div>
+      <div style="font-size:12.5px;color:var(--text-dim);margin-top:2px;">${esc(p.detalhe)}</div>
+      <div style="font-size:11.5px;color:var(--text-dim);margin-top:6px;padding-top:6px;border-top:1px solid var(--line);">🎯 ${esc(p.meta)}</div>
+    </div>`).join('')}
+  <div class="empty" style="margin-top:4px;"><span class="big" style="font-size:13.5px;">Ainda não entraram na rotina ativa</span>Quando um desses virar prioridade real, é só pedir pra mover pra dentro do Controle/Check diário.</div>`;
+}
+
 function renderRelatorios(main){
   const mesAtual = controleMes;
   const mesAnterior = shiftMonth(mesAtual, -1);
   const finAtual = financasResumoMes(mesAtual);
   const finAnterior = financasResumoMes(mesAnterior);
-  const houveMesAnterior = state.financas.some(t=>(t.data||'').startsWith(mesAnterior));
+  const houveMesAnterior = state.caixaDiario.some(t=>(t.data||'').startsWith(mesAnterior));
 
   const pctSaldo = (houveMesAnterior && finAnterior.saldo !== 0) ? ((finAtual.saldo - finAnterior.saldo)/Math.abs(finAnterior.saldo))*100 : (finAtual.saldo!==0?100:0);
   const pctEntradas = (houveMesAnterior && finAnterior.entradas !== 0) ? ((finAtual.entradas - finAnterior.entradas)/finAnterior.entradas)*100 : (finAtual.entradas!==0?100:0);
@@ -3062,17 +3113,35 @@ function renderDashboard(main){
   const inicioSemana2 = startOfWeekISO(hoje);
   const regsSemanaCheck = state.checkDiario.filter(r=> r.data >= inicioSemana2 && r.data <= hoje);
   const tiktokFeitos = regsSemanaCheck.filter(r=>r.tiktok).length;
-  const casualFeitos = regsSemanaCheck.filter(r=>r.casual).length;
   const onakFeitos = regsSemanaCheck.filter(r=>r.onak).length;
 
   html += `<div class="card">
     <div class="section-label" style="margin-top:0;">Execução vs meta · essa semana</div>
-    ${[['TikTok',tiktokFeitos,METAS_SEMANAIS.TikTok],['Linha Casual',casualFeitos,METAS_SEMANAIS.Casual],['Onak',onakFeitos,METAS_SEMANAIS.Onak]].map(([label,feito,meta])=>{
+    ${[['TikTok Shopping Afiliado',tiktokFeitos,METAS_SEMANAIS['TikTok Shopping Afiliado']],['Onak Hub',onakFeitos,METAS_SEMANAIS['Onak Hub']]].map(([label,feito,meta])=>{
       const pct = Math.min(100, Math.round(feito/meta*100));
       const cor = feito>=meta ? 'var(--financas)' : pct>=50 ? 'var(--warning)' : 'var(--danger)';
       return `<div style="margin-bottom:12px;">
         <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
           <span>${esc(label)}</span><span style="color:var(--text-dim);">${feito}/${meta} sessões</span>
+        </div>
+        <div style="height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${cor};"></div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+
+  const totaisSemanaHoras = tempoTotaisSemana();
+  html += `<div class="card">
+    <div class="section-label" style="margin-top:0;">Metas semanais de horas</div>
+    ${TEMPO_PROJETOS.map(p=>{
+      const feito = totaisSemanaHoras[p] || 0;
+      const meta = METAS_HORAS_SEMANAIS[p] || 0;
+      const pct = meta>0 ? Math.min(100, Math.round(feito/meta*100)) : 0;
+      const cor = feito>=meta ? 'var(--financas)' : pct>=50 ? 'var(--warning)' : 'var(--danger)';
+      return `<div style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+          <span>${esc(p)}</span><span style="color:var(--text-dim);">${formatHoras(feito)} / ${meta}h</span>
         </div>
         <div style="height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden;">
           <div style="height:100%;width:${pct}%;background:${cor};"></div>
@@ -3430,6 +3499,17 @@ function caixaDiarioHtml(){
     <div class="amount ${saldo>=0?'pos':'neg'}">${formatMoney(saldo)}</div>
   </div>`;
 
+  const hoje = todayISO();
+  if (new Date(hoje+'T00:00:00').getDay() === 0){
+    const inicioSemana = startOfWeekISO(hoje);
+    const saldoSemana = lancamentos.filter(l=>l.data>=inicioSemana && l.data<=hoje)
+      .reduce((acc,l)=> acc + (l.tipo==='entrada' ? l.valor : -l.valor), 0);
+    html += `<div class="balance-card" style="border:1px solid ${saldoSemana>=0?'var(--financas)':'var(--danger)'};">
+      <div class="label">Saldo da semana (domingo)</div>
+      <div class="amount ${saldoSemana>=0?'pos':'neg'}">${formatMoney(saldoSemana)}</div>
+    </div>`;
+  }
+
   html += `<div class="card" style="padding:16px 14px;">
     <input id="quickValor" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0,00"
       style="width:100%;background:transparent;border:none;color:var(--text);font-family:var(--font-mono);font-size:32px;font-weight:600;text-align:center;outline:none;margin-bottom:14px;">
@@ -3682,11 +3762,7 @@ function handleAddClick(){
     sheet.innerHTML = treinoSubTab === 'habitos' ? habitoForm() : treinoForm();
   }
   else if (currentTab === 'financas'){
-    if (financasSubTab === 'diario'){ sheet.innerHTML = caixaAvancadoForm(); }
-    else if (financasSubTab === 'mov'){ currentFinType = 'diaria'; sheet.innerHTML = financasForm(); }
-    else if (financasSubTab === 'caixinhas'){ sheet.innerHTML = caixinhaForm(); }
-    else if (financasSubTab === 'mensal'){ sheet.innerHTML = bancosForm(); }
-    else { return; }
+    sheet.innerHTML = caixaAvancadoForm();
   }
   wireSheet();
   openSheet();
@@ -3703,6 +3779,7 @@ function maisMenuHtml(){
     { tab:'estudos', label:'Estudos' },
     { tab:'habitos', label:'Hábitos' },
     { tab:'relatorios', label:'Relatórios' },
+    { tab:'futuro', label:'Projetos Futuros' },
   ];
   return `<h2>Mais</h2>
     <div class="card">${itens.map(i=>`<div class="row" data-goto-tab="${i.tab}" style="cursor:pointer;">
@@ -3733,8 +3810,8 @@ function crmForm(){
     <div class="field"><label for="f-nome">Nome</label><input id="f-nome" type="text" placeholder="Ex: Maria Silva" maxlength="60"></div>
     <div class="field"><label for="f-projeto">Projeto</label>
       <select id="f-projeto">
-        <option value="Onak">Onak</option>
-        <option value="Casual">Linha Casual</option>
+        <option value="Onak Hub">Onak Hub</option>
+        <option value="Marca Própria">Marca Própria</option>
       </select>
     </div>
     <div class="field"><label>Status</label>
@@ -3797,10 +3874,26 @@ function cronogramaForm(){
     <div class="field"><label for="f-titulo">Descrição</label><input id="f-titulo" type="text" maxlength="60" placeholder="Ex: Gravação de conteúdo"></div>
     ${sheetActions('cronograma')}`;
 }
+const ESTUDO_CATEGORIAS = {
+  'Marketing Digital': ['Tráfego Pago (Meta/Google/TikTok Ads)', 'Ecommerce (Shopee/Amazon/TikTok Shop/ML/Hotmart/Kiwify)', 'Estrutura (Shopify/Nuvemshop/Yampi/Cartpanda)'],
+  'Criativos e Copywriting': ['Hooks', 'Roteiros', 'Copy de vendas'],
+  'Inteligência Artificial': ['Copy (ChatGPT/Claude)', 'Criativos (CapCut)', 'Design (Canva)', 'Pesquisa (TikTok/Pinterest)'],
+  'Marca Própria': ['Branding', 'Produto', 'Posicionamento'],
+  'Ecossistema': ['Onak Hub', 'Endurance'],
+};
+
 function estudoForm(){
+  const categorias = Object.keys(ESTUDO_CATEGORIAS);
+  const primeira = categorias[0];
   return `<h2>Registrar estudo</h2>
-    <div class="field"><label for="f-materia">Matéria / assunto</label><input id="f-materia" type="text" maxlength="60" placeholder="Ex: Inglês, Gestão"></div>
-    <div class="field"><label for="f-duracao">Duração (minutos)</label><input id="f-duracao" type="number" min="1" max="600" placeholder="30"></div>
+    <div class="field"><label for="f-categoria-estudo">Categoria</label>
+      <select id="f-categoria-estudo">${categorias.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')}</select>
+    </div>
+    <div class="field"><label for="f-subcategoria-estudo">Subcategoria</label>
+      <select id="f-subcategoria-estudo">${ESTUDO_CATEGORIAS[primeira].map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('')}</select>
+    </div>
+    <div class="field"><label for="f-duracao">Duração (minutos)</label><input id="f-duracao" type="number" min="1" max="600" value="60"></div>
+    <div class="field"><label for="f-nota-estudo">O que estudou (opcional)</label><input id="f-nota-estudo" type="text" maxlength="100" placeholder="Ex: Estrutura de anúncio Meta Ads"></div>
     ${sheetActions('estudos')}`;
 }
 function treinoForm(){
@@ -4067,6 +4160,14 @@ function wireSheet(){
     applyDefaults();
   }
 
+  const categoriaEstudoSelect = document.getElementById('f-categoria-estudo');
+  if (categoriaEstudoSelect){
+    categoriaEstudoSelect.addEventListener('change', ()=>{
+      const subSelect = document.getElementById('f-subcategoria-estudo');
+      subSelect.innerHTML = ESTUDO_CATEGORIAS[categoriaEstudoSelect.value].map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+    });
+  }
+
   const crmStatusToggle = document.getElementById('crmstatus-toggle');
   if (crmStatusToggle){
     const colorFor = { novo:'var(--info)', conversa:'var(--warning)', fechado:'var(--financas)', perdido:'var(--danger)' };
@@ -4224,10 +4325,11 @@ function wireSheet(){
       await persist('cronograma');
     }
     if (tab === 'estudos'){
-      const materia = document.getElementById('f-materia').value.trim();
+      const categoria = document.getElementById('f-categoria-estudo').value;
+      const subcategoria = document.getElementById('f-subcategoria-estudo').value;
       const duracao = parseInt(document.getElementById('f-duracao').value) || 0;
-      if (!materia) return;
-      state.estudos.push({ id: uid(), date: todayISO(), materia, duracao });
+      const nota = document.getElementById('f-nota-estudo').value.trim();
+      state.estudos.push({ id: uid(), date: todayISO(), categoria, subcategoria, materia: subcategoria, duracao, nota });
       await persist('estudos');
     }
     if (tab === 'treino'){
@@ -4333,6 +4435,7 @@ async function startApp(){
   document.getElementById('content').innerHTML = `<div class="empty">Carregando seus dados…</div>`;
   await loadAll();
   await seedHabitosPadrao();
+  await atualizarHabitosRotinaV2();
   relatoriosMes = currentMonthKey();
   controleMes = currentMonthKey();
   setActiveTab('central');
