@@ -2136,6 +2136,8 @@ function weekDotsHtml(){
 }
 
 let agendaSubTab = 'hoje';
+let agendaMesAtual = currentMonthKey();
+let agendaDiaSelecionado = todayISO();
 
 const CRM_STATUS_COR = { novo:'var(--info)', conversa:'var(--warning)', fechado:'var(--financas)', perdido:'var(--danger)' };
 const CRM_STATUS_LABEL = { novo:'Novo', conversa:'Em conversa', fechado:'Fechado', perdido:'Perdido' };
@@ -2166,9 +2168,71 @@ function renderCRM(main){
   bindDeletes(main);
 }
 
+function calendarioMensalHtml(){
+  const [ano, mes] = agendaMesAtual.split('-').map(Number);
+  const primeiroDiaSemana = new Date(ano, mes-1, 1).getDay();
+  const diasNoMes = new Date(ano, mes, 0).getDate();
+  const hoje = todayISO();
+
+  const eventosPorDia = {};
+  state.agenda.forEach(e=>{ eventosPorDia[e.date] = (eventosPorDia[e.date]||0) + 1; });
+
+  const celulas = [];
+  for (let i=0;i<primeiroDiaSemana;i++) celulas.push(null);
+  for (let d=1; d<=diasNoMes; d++) celulas.push(d);
+  while (celulas.length % 7 !== 0) celulas.push(null);
+
+  const semanas = [];
+  for (let i=0;i<celulas.length;i+=7) semanas.push(celulas.slice(i,i+7));
+
+  return `<div class="card" style="padding:14px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <button type="button" data-mescal="prev" style="background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;padding:2px 12px;">‹</button>
+      <div style="font-weight:600;font-size:14.5px;text-transform:capitalize;">${esc(mesLabel(agendaMesAtual))}</div>
+      <button type="button" data-mescal="next" style="background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;padding:2px 12px;">›</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px;">
+      ${['D','S','T','Q','Q','S','S'].map(l=>`<div style="text-align:center;font-size:10px;color:var(--text-dim);">${l}</div>`).join('')}
+    </div>
+    ${semanas.map(semana=>`<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px;">
+      ${semana.map(d=>{
+        if (!d) return `<div></div>`;
+        const dataStr = `${agendaMesAtual}-${String(d).padStart(2,'0')}`;
+        const ehHoje = dataStr === hoje;
+        const ehSelecionado = dataStr === agendaDiaSelecionado;
+        const temEvento = eventosPorDia[dataStr] > 0;
+        return `<button type="button" data-diacal="${dataStr}" style="aspect-ratio:1;border-radius:8px;border:${ehHoje&&!ehSelecionado?'1px solid var(--current)':'none'};cursor:pointer;position:relative;
+          background:${ehSelecionado?'var(--current)':'var(--surface-2)'};
+          color:${ehSelecionado?'#0a0d10':'var(--text)'};font-size:12.5px;font-weight:${ehHoje||ehSelecionado?'700':'500'};">
+          ${d}
+          ${temEvento ? `<span style="position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:${ehSelecionado?'#0a0d10':'var(--current)'};"></span>` : ''}
+        </button>`;
+      }).join('')}
+    </div>`).join('')}
+  </div>`;
+}
+
+function diaDetalheHtml(){
+  const eventos = state.agenda.filter(e=>e.date===agendaDiaSelecionado).sort((a,b)=>a.time.localeCompare(b.time));
+  const label = agendaDiaSelecionado === todayISO() ? 'Hoje' : formatDateShort(agendaDiaSelecionado);
+  let html = `<div class="row-sub" style="margin:14px 2px 8px;">${esc(label)}</div>`;
+  if (eventos.length === 0){
+    html += `<div class="empty"><span class="big" style="font-size:13.5px;">Nada marcado nesse dia</span>Toque no + pra adicionar.</div>`;
+  } else {
+    html += `<div class="card">${eventos.map(e=>`
+      <div class="row">
+        <div class="row-time">${esc(e.time)}</div>
+        ${e.area === 'Vida' ? `<span style="font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:20px;background:#94a3b822;color:#94a3b8;white-space:nowrap;">Vida</span>` : ''}
+        <div class="row-title" style="flex:1">${esc(e.title)}</div>
+        <button class="del-btn" data-del="agenda" data-id="${e.id}">✕</button>
+      </div>`).join('')}</div>`;
+  }
+  return html;
+}
+
 function renderAgenda(main){
   let html = `<div class="chip-row">
-    <button class="chip ${agendaSubTab==='hoje'?'sel':''}" data-agendasub="hoje">Hoje</button>
+    <button class="chip ${agendaSubTab==='hoje'?'sel':''}" data-agendasub="hoje">Calendário</button>
     <button class="chip ${agendaSubTab==='cronograma'?'sel':''}" data-agendasub="cronograma">Cronograma fixo</button>
   </div>`;
 
@@ -2181,23 +2245,26 @@ function renderAgenda(main){
     return;
   }
 
-  const hoje = todayISO();
-  const eventos = state.agenda.filter(e=>e.date===hoje).sort((a,b)=>a.time.localeCompare(b.time));
-  if (eventos.length === 0){
-    html += `<div class="empty"><span class="big">Nada marcado por hoje</span>Toque no + para adicionar um compromisso.</div>`;
-  } else {
-    html += `<div class="card">${eventos.map(e=>`
-      <div class="row">
-        <div class="row-time">${esc(e.time)}</div>
-        ${e.area === 'Vida' ? `<span style="font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:20px;background:#94a3b822;color:#94a3b8;white-space:nowrap;">Vida</span>` : ''}
-        <div class="row-title">${esc(e.title)}</div>
-        <button class="del-btn" data-del="agenda" data-id="${e.id}">✕</button>
-      </div>`).join('')}</div>`;
-  }
+  html += calendarioMensalHtml();
+  html += diaDetalheHtml();
+
   main.innerHTML = html;
   bindDeletes(main);
+
   main.querySelectorAll('[data-agendasub]').forEach(chip=>{
     chip.addEventListener('click', ()=>{ agendaSubTab = chip.dataset.agendasub; render(); });
+  });
+  main.querySelectorAll('[data-mescal]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      agendaMesAtual = shiftMonth(agendaMesAtual, btn.dataset.mescal==='next'?1:-1);
+      render();
+    });
+  });
+  main.querySelectorAll('[data-diacal]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      agendaDiaSelecionado = btn.dataset.diacal;
+      render();
+    });
   });
 }
 
@@ -2324,11 +2391,52 @@ function historicoHorasHtml(){
   </div>`;
 }
 
+let controleHistoricoFiltro = 'hoje';
+
+function historicoPorDiaHtml(){
+  const hoje = todayISO();
+  let inicio, fim, label;
+  if (controleHistoricoFiltro === 'ontem'){ const o=addDiasISO(hoje,-1); inicio=o; fim=o; label='Ontem'; }
+  else if (controleHistoricoFiltro === 'semana'){ inicio = startOfWeekISO(hoje); fim = hoje; label = 'Essa semana'; }
+  else { inicio = hoje; fim = hoje; label = 'Hoje'; }
+
+  const totais = tempoTotaisPeriodo(inicio, fim);
+  const totalGeral = TEMPO_PROJETOS.reduce((a,p)=>a+totais[p],0);
+
+  return `<div class="card">
+    <div class="section-label" style="margin-top:0;">Histórico por dia</div>
+    <div class="chip-row" style="margin-bottom:10px;">
+      <button class="chip ${controleHistoricoFiltro==='hoje'?'sel':''}" data-histfiltro="hoje">Hoje</button>
+      <button class="chip ${controleHistoricoFiltro==='ontem'?'sel':''}" data-histfiltro="ontem">Ontem</button>
+      <button class="chip ${controleHistoricoFiltro==='semana'?'sel':''}" data-histfiltro="semana">Semana</button>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <span class="row-sub" style="margin:0;">${esc(label)}</span>
+      <span style="font-family:var(--font-mono);font-weight:700;">${formatHoras(totalGeral)}</span>
+    </div>
+    ${totalGeral === 0 ? `<div class="empty" style="padding:12px 0;"><span class="big" style="font-size:13.5px;">Nenhuma hora registrada</span></div>` :
+      TEMPO_PROJETOS.map(p=>{
+        const pct = totalGeral>0 ? Math.round(totais[p]/totalGeral*100) : 0;
+        return `<div style="margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+            <span>${esc(p)}</span><span style="color:var(--text-dim);">${formatHoras(totais[p])}</span>
+          </div>
+          <div style="height:6px;border-radius:4px;background:var(--surface-2);overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:${TEMPO_CORES[p]};"></div>
+          </div>
+        </div>`;
+      }).join('')}
+  </div>`;
+}
+
 function renderControleNovo(main){
-  main.innerHTML = cronoWidgetHtml() + tempoRegistroDiaHtml() + tempoCategoriaDiaHtml() + historicoHorasHtml();
+  main.innerHTML = cronoWidgetHtml() + tempoRegistroDiaHtml() + tempoCategoriaDiaHtml() + historicoPorDiaHtml() + historicoHorasHtml();
   bindDeletes(main);
   wireCronoWidget(main);
   wireTempoRegistro(main);
+  main.querySelectorAll('[data-histfiltro]').forEach(chip=>{
+    chip.addEventListener('click', ()=>{ controleHistoricoFiltro = chip.dataset.histfiltro; render(); });
+  });
 }
 
 function renderEstudosTab(main){
@@ -2759,13 +2867,39 @@ function habitosHtml(){
   if (state.habitos.length === 0){
     return `<div class="empty"><span class="big">Nenhum hábito ainda</span>Toque no + para criar um (ex: Beber água, Ler, Dormir cedo). Toque no ponto de hoje pra marcar como feito.</div>`;
   }
-  return state.habitos.map(h=>`<div class="card">
-    <div class="row" style="border:none; padding:0 0 10px;">
-      <div class="row-title" style="flex:1;">${esc(h.nome)}</div>
-      <button class="del-btn" data-del="habitos" data-id="${h.id}">✕</button>
+  const totalHabitos = state.habitos.length;
+  const feitosHoje = state.habitos.filter(h=>isHabitoConcluidoHoje(h.id)).length;
+  const pct = Math.round((feitosHoje/totalHabitos)*100);
+  const cor = pct===100 ? 'var(--financas)' : pct>=50 ? 'var(--warning)' : 'var(--danger)';
+
+  let html = `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-size:11px;color:var(--text-dim);letter-spacing:.04em;">HOJE</div>
+        <div style="font-family:var(--font-mono);font-size:28px;font-weight:700;margin-top:2px;">${feitosHoje}/${totalHabitos}</div>
+      </div>
+      <div style="font-size:22px;font-weight:700;color:${cor};">${pct}%</div>
     </div>
-    ${habitoWeekDots(h.id)}
-  </div>`).join('');
+    <div style="height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden;margin-top:12px;">
+      <div style="height:100%;width:${pct}%;background:${cor};transition:width .2s ease;"></div>
+    </div>
+  </div>`;
+
+  html += state.habitos.map(h=>{
+    const feito = isHabitoConcluidoHoje(h.id);
+    const streak = habitStreak(h.id);
+    return `<div class="card" style="border-left:3px solid ${feito?'var(--financas)':'var(--surface-2)'};">
+      <div class="row" style="border:none; padding:0 0 4px;">
+        <div style="flex:1;">
+          <div class="row-title">${esc(h.nome)}</div>
+          ${streak>0 ? `<div style="font-size:11.5px;color:var(--warning);margin-top:2px;">🔥 ${streak} dia${streak>1?'s':''} seguido${streak>1?'s':''}</div>` : ''}
+        </div>
+        <button class="del-btn" data-del="habitos" data-id="${h.id}">✕</button>
+      </div>
+      ${habitoWeekDots(h.id)}
+    </div>`;
+  }).join('');
+  return html;
 }
 
 function formatDateShort(dateStr){
@@ -4181,6 +4315,7 @@ function crmForm(){
 
 function agendaForm(){
   return `<h2>Novo compromisso</h2>
+    <div class="field"><label for="f-data">Data</label><input id="f-data" type="date" value="${esc(agendaDiaSelecionado)}"></div>
     <div class="field"><label for="f-time">Horário</label><input id="f-time" type="time" value="09:00"></div>
     <div class="field"><label for="f-title">O que é</label><input id="f-title" type="text" placeholder="Ex: Reunião com o time" maxlength="60"></div>
     <div class="field"><label for="f-area">Área</label>
@@ -4670,12 +4805,13 @@ function wireSheet(){
       }
     }
     if (tab === 'agenda'){
+      const data = document.getElementById('f-data').value || todayISO();
       const time = document.getElementById('f-time').value;
       const title = document.getElementById('f-title').value.trim();
       if (!title) return;
       const areaSel = document.getElementById('f-area');
       const area = areaSel && areaSel.value ? areaSel.value : undefined;
-      state.agenda.push({ id: uid(), date: todayISO(), time: time || '00:00', title, area });
+      state.agenda.push({ id: uid(), date: data, time: time || '00:00', title, area });
       await persist('agenda');
     }
     if (tab === 'trabalho'){
