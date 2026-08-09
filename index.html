@@ -877,6 +877,10 @@
       <svg viewBox="0 0 24 24"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>
       <span class="tlabel">Futuro</span>
     </button>
+    <button class="tab" data-tab="home" aria-label="Home">
+      <svg viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-6h4v6"/></svg>
+      <span class="tlabel">Home</span>
+    </button>
   </nav>
 
   <header>
@@ -925,14 +929,15 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script>
-const COLORS = { central:'#22c55e', dashboard:'#22c55e', controle:'#22c55e', crm:'#22c55e', agenda:'#22c55e', financas:'#22c55e', projetos:'#22c55e', estudos:'#22c55e', habitos:'#22c55e', relatorios:'#22c55e', futuro:'#22c55e' };
-const TITLES = { central:'Central', dashboard:'Dashboard', controle:'Controle', crm:'CRM', agenda:'Agenda', financas:'Finanças', projetos:'Projetos', estudos:'Estudos', habitos:'Hábitos', relatorios:'Relatórios', futuro:'Projetos Futuros' };
+const COLORS = { central:'#22c55e', dashboard:'#22c55e', controle:'#22c55e', crm:'#22c55e', agenda:'#22c55e', financas:'#22c55e', projetos:'#22c55e', estudos:'#22c55e', habitos:'#22c55e', relatorios:'#22c55e', futuro:'#22c55e', home:'#22c55e' };
+const TITLES = { central:'Central', dashboard:'Dashboard', controle:'Controle', crm:'CRM', agenda:'Agenda', financas:'Finanças', projetos:'Projetos', estudos:'Estudos', habitos:'Hábitos', relatorios:'Relatórios', futuro:'Projetos Futuros', home:'Home' };
 const STORAGE_KEY = {
   agenda:'agenda-events', trabalho:'trabalho-tasks', treino:'treino-logs', financas:'financas-transactions',
   projetos:'trabalho-projetos', cronograma:'trabalho-cronograma', estudos:'trabalho-estudos', caixinhas:'financas-caixinhas',
   bancos:'financas-bancos', trabalhoSessoes:'trabalho-sessoes', habitos:'vida-habitos', habitoLogs:'vida-habito-logs',
   caixaDiario:'caixa-diario-lancamentos', tempoDiario:'tempo-diario-registros', revisaoSemanal:'revisao-semanal-notas',
-  controleDia:'controle-dia-registros', missoesConcluidas:'missoes-concluidas-log', crmLeads:'crm-leads', checkDiario:'check-diario-registros'
+  controleDia:'controle-dia-registros', missoesConcluidas:'missoes-concluidas-log', crmLeads:'crm-leads', checkDiario:'check-diario-registros',
+  mercadoLista:'home-mercado-lista', casaTarefas:'home-casa-tarefas', alimentacaoDiaria:'home-alimentacao-diaria'
 };
 
 const DIARIA_LOCAIS = { 'Villa Kaboom': 90, 'Mágico Festas': 80 };
@@ -963,7 +968,7 @@ const CAIXINHA_TEMPLATES = {
 const DIAS_SEMANA = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
 const SUBTAB_LABELS = { tarefas:'Tarefas', projetos:'Projetos', cronograma:'Cronograma', estudos:'Estudos', tempo:'Tempo' };
 
-let state = { agenda:[], trabalho:[], treino:[], financas:[], projetos:[], cronograma:[], estudos:[], caixinhas:[], bancos:[], trabalhoSessoes:[], habitos:[], habitoLogs:[], caixaDiario:[], tempoDiario:[], revisaoSemanal:[], controleDia:[], missoesConcluidas:[], crmLeads:[], checkDiario:[] };
+let state = { agenda:[], trabalho:[], treino:[], financas:[], projetos:[], cronograma:[], estudos:[], caixinhas:[], bancos:[], trabalhoSessoes:[], habitos:[], habitoLogs:[], caixaDiario:[], tempoDiario:[], revisaoSemanal:[], controleDia:[], missoesConcluidas:[], crmLeads:[], checkDiario:[], mercadoLista:[], casaTarefas:[], alimentacaoDiaria:[] };
 const TEMPO_GRUPOS = [
   { chave:'manha', titulo:'🌅 Manhã', projetos:['Shopee','Marca Própria'] },
   { chave:'tarde', titulo:'🌇 Tarde', projetos:['Amazon','T11Sports'] },
@@ -997,6 +1002,9 @@ let currentEditId = null;
 let treinoSubTab = 'treino';
 let controleMes = null; // definido no startApp
 let cronometro = { projeto:null, running:false, startedAt:null, accumulatedMs:0 };
+let estudoCrono = { tema:null, running:false, startedAt:null, accumulatedMs:0 };
+const ESTUDO_TEMAS = ['Tráfego pago (Meta/Google/TikTok Ads)', 'Ecommerce', 'Copywriting', 'Criativos', 'Inteligência Artificial', 'Marca própria'];
+const ESTUDO_META_SEMANAL_MIN = 420; // 7h/semana
 
 function getSplitPlanFromForm(){
   const plan = [];
@@ -1106,6 +1114,10 @@ async function loadAll(){
   try{
     const rawCrono = localStorage.getItem(LS_PREFIX + 'cronometro-estado');
     if (rawCrono) cronometro = JSON.parse(rawCrono);
+  }catch(e){}
+  try{
+    const rawEstudoCrono = localStorage.getItem(LS_PREFIX + 'estudo-cronometro-estado');
+    if (rawEstudoCrono) estudoCrono = JSON.parse(rawEstudoCrono);
   }catch(e){}
   checkStorageAvailable();
 }
@@ -1226,8 +1238,50 @@ async function cronoFinalizar(){
 function updateCronoDisplay(){
   const el = document.getElementById('cronoDisplay');
   if (el && cronometro.running) el.textContent = cronoFormat(cronoElapsedMs());
+  const elEstudo = document.getElementById('estudoCronoDisplay');
+  if (elEstudo && estudoCrono.running) elEstudo.textContent = cronoFormat(estudoCronoElapsedMs());
 }
 setInterval(updateCronoDisplay, 1000);
+
+async function persistEstudoCrono(){
+  try{ localStorage.setItem(LS_PREFIX + 'estudo-cronometro-estado', JSON.stringify(estudoCrono)); }catch(e){}
+}
+function estudoCronoElapsedMs(){
+  let ms = estudoCrono.accumulatedMs || 0;
+  if (estudoCrono.running && estudoCrono.startedAt) ms += (Date.now() - estudoCrono.startedAt);
+  return ms;
+}
+function estudoCronoSetTema(tema){
+  if (estudoCrono.running) return;
+  estudoCrono.tema = tema;
+  persistEstudoCrono();
+}
+function estudoCronoStart(){
+  if (estudoCrono.running) return;
+  estudoCrono.running = true;
+  estudoCrono.startedAt = Date.now();
+  persistEstudoCrono();
+}
+function estudoCronoPause(){
+  if (!estudoCrono.running) return;
+  estudoCrono.accumulatedMs = (estudoCrono.accumulatedMs || 0) + (Date.now() - estudoCrono.startedAt);
+  estudoCrono.running = false;
+  estudoCrono.startedAt = null;
+  persistEstudoCrono();
+}
+async function estudoCronoFinalizar(){
+  if (estudoCrono.running) estudoCronoPause();
+  const totalMin = Math.round(estudoCronoElapsedMs() / 60000);
+  const tema = estudoCrono.tema;
+  if (totalMin >= 1 && tema){
+    state.estudos.push({ id: uid(), date: todayISO(), categoria: tema, subcategoria: tema, materia: tema, duracao: totalMin });
+    await persist('estudos');
+    showToast(`✓ ${formatDuracao(totalMin)} em ${tema}`);
+  }
+  estudoCrono = { tema:null, running:false, startedAt:null, accumulatedMs:0 };
+  await persistEstudoCrono();
+  render();
+}
 
 function cronoWidgetHtml(){
   const projetoAtivo = cronometro.projeto;
@@ -1442,6 +1496,7 @@ function render(){
   if (currentTab === 'habitos') return renderTreino(main);
   if (currentTab === 'relatorios') return renderRelatorios(main);
   if (currentTab === 'futuro') return renderFuturo(main);
+  if (currentTab === 'home') return renderHome(main);
 }
 
 function habitStreak(habitId){
@@ -2439,9 +2494,81 @@ function renderControleNovo(main){
   });
 }
 
+function estudoResumoHtml(){
+  const hoje = todayISO();
+  const inicioSemana = startOfWeekISO(hoje);
+  const logsSemana = state.estudos.filter(l=>l.date >= inicioSemana && l.date <= hoje);
+  const totalSemana = logsSemana.reduce((a,l)=>a+(l.duracao||0),0);
+  const pct = Math.min(100, Math.round((totalSemana/ESTUDO_META_SEMANAL_MIN)*100));
+  const cor = totalSemana>=ESTUDO_META_SEMANAL_MIN ? 'var(--financas)' : pct>=50 ? 'var(--warning)' : 'var(--danger)';
+  const ultimoLog = [...state.estudos].sort((a,b)=> b.date.localeCompare(a.date))[0];
+  const temaAtual = estudoCrono.tema || (ultimoLog ? (ultimoLog.subcategoria||ultimoLog.materia) : null);
+
+  return `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+      <div>
+        <div style="font-size:11px;color:var(--text-dim);letter-spacing:.04em;">TEMPO ESTUDADO · SEMANA</div>
+        <div style="font-family:var(--font-mono);font-size:30px;font-weight:700;margin-top:4px;">${formatDuracao(totalSemana)}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:11px;color:var(--text-dim);">meta ${formatDuracao(ESTUDO_META_SEMANAL_MIN)}</div>
+        <div style="font-size:13px;font-weight:600;color:${cor};margin-top:2px;">${pct}%</div>
+      </div>
+    </div>
+    <div style="height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden;margin-top:10px;">
+      <div style="height:100%;width:${pct}%;background:${cor};"></div>
+    </div>
+    ${temaAtual ? `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:12.5px;color:var(--text-dim);">Tema atual: <strong style="color:var(--text);">${esc(temaAtual)}</strong></div>` : ''}
+  </div>`;
+}
+
+function estudoCronoWidgetHtml(){
+  const tema = estudoCrono.tema;
+  const elapsed = estudoCronoElapsedMs();
+  const podeEscolher = !estudoCrono.running && elapsed === 0;
+
+  let html = `<div class="card" id="estudoCronoCard">
+    <div class="section-label" style="margin-top:0;">Cronômetro de estudo</div>`;
+  html += tema
+    ? `<div style="text-align:center;font-size:13px;font-weight:600;color:var(--info);margin-bottom:4px;">${esc(tema)}</div>`
+    : `<div style="text-align:center;font-size:12.5px;color:var(--text-dim);margin-bottom:4px;">Escolha um tema pra começar</div>`;
+  html += `<div style="text-align:center;margin-bottom:${podeEscolher?'10':'16'}px;">
+    <div id="estudoCronoDisplay" class="${estudoCrono.running?'crono-pulse':''}" style="font-family:var(--font-mono);font-size:38px;font-weight:600;">${cronoFormat(elapsed)}</div>
+  </div>`;
+  if (podeEscolher){
+    html += `<div class="chip-row" style="flex-wrap:wrap;margin-bottom:4px;">
+      ${ESTUDO_TEMAS.map(t=>`<button type="button" class="chip" data-estudo-tema="${esc(t)}">${esc(t)}</button>`).join('')}
+    </div>`;
+  }
+  html += `<div class="sheet-actions" style="margin-top:14px;">
+      ${estudoCrono.running
+        ? `<button type="button" class="btn-cancel" id="estudoCronoPauseBtn">Pausar</button>`
+        : (tema && elapsed>0 ? `<button type="button" class="btn-cancel" id="estudoCronoStartBtn">Retomar</button>` : '')}
+      <button type="button" class="btn-save" id="estudoCronoFinishBtn" ${elapsed===0?'disabled style="opacity:.5;"':''}>Encerrar</button>
+    </div>
+  </div>`;
+  return html;
+}
+function wireEstudoCronoWidget(main){
+  main.querySelectorAll('[data-estudo-tema]').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      estudoCronoSetTema(chip.dataset.estudoTema);
+      estudoCronoStart();
+      render();
+    });
+  });
+  const startBtn = document.getElementById('estudoCronoStartBtn');
+  if (startBtn) startBtn.addEventListener('click', ()=>{ estudoCronoStart(); render(); });
+  const pauseBtn = document.getElementById('estudoCronoPauseBtn');
+  if (pauseBtn) pauseBtn.addEventListener('click', ()=>{ estudoCronoPause(); render(); });
+  const finishBtn = document.getElementById('estudoCronoFinishBtn');
+  if (finishBtn) finishBtn.addEventListener('click', ()=> estudoCronoFinalizar());
+}
+
 function renderEstudosTab(main){
-  main.innerHTML = estudosHtml();
+  main.innerHTML = estudoResumoHtml() + estudoCronoWidgetHtml() + estudosHtml();
   bindDeletes(main);
+  wireEstudoCronoWidget(main);
 }
 
 function renderTrabalho(main){
@@ -2686,48 +2813,19 @@ function cronogramaHtml(){
 
 function estudosHtml(){
   const logs = [...state.estudos].sort((a,b)=> b.date.localeCompare(a.date));
-  const now = new Date();
-  const startWeek = new Date(now); startWeek.setDate(now.getDate() - now.getDay());
-  const startStr = startWeek.toISOString().slice(0,10);
-  const logsSemana = state.estudos.filter(l=>l.date >= startStr);
-  const totalSemana = logsSemana.reduce((a,l)=>a+(l.duracao||0),0);
-
-  const porCategoria = {};
-  Object.keys(ESTUDO_CATEGORIAS).forEach(c=> porCategoria[c]=0);
-  logsSemana.forEach(l=>{ if (porCategoria[l.categoria] !== undefined) porCategoria[l.categoria] += (l.duracao||0); });
-
-  let html = `<div class="stat-pill">📚 ${formatDuracao(totalSemana)} de estudo esta semana</div>`;
-
-  html += `<div class="card" style="margin-top:10px;">
-    ${Object.keys(ESTUDO_CATEGORIAS).map(c=>{
-      const min = porCategoria[c];
-      const pct = totalSemana>0 ? Math.round(min/totalSemana*100) : 0;
-      return `<div style="margin-bottom:10px;">
-        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
-          <span>${esc(c)}</span><span style="color:var(--text-dim);">${formatDuracao(min)}</span>
-        </div>
-        <div style="height:6px;border-radius:4px;background:var(--surface-2);overflow:hidden;">
-          <div style="height:100%;width:${pct}%;background:var(--info);"></div>
-        </div>
-      </div>`;
-    }).join('')}
-  </div>`;
-
   if (logs.length === 0){
-    html += `<div class="empty"><span class="big">Nenhum estudo registrado</span>Toque no + para registrar sua sessão de 1h.</div>`;
-  } else {
-    html += `<div class="card">${logs.map(l=>`
-      <div class="row" style="align-items:flex-start;">
-        <div class="row-time">${formatDateShort(l.date)}</div>
-        <div style="flex:1">
-          <div class="row-title">${esc(l.subcategoria || l.materia || '')}</div>
-          <div class="row-sub">${esc(l.categoria||'')} · ${formatDuracao(l.duracao)}</div>
-          ${l.nota ? `<div style="font-size:12px;color:var(--text-dim);margin-top:2px;">${esc(l.nota)}</div>` : ''}
-        </div>
-        <button class="del-btn" data-del="estudos" data-id="${l.id}">✕</button>
-      </div>`).join('')}</div>`;
+    return `<div class="empty"><span class="big">Nenhum estudo registrado</span>Escolha um tema acima e toque em start.</div>`;
   }
-  return html;
+  return `<div class="row-sub" style="margin:14px 2px 6px;">Histórico</div>
+  <div class="card">${logs.slice(0,20).map(l=>`
+    <div class="row" style="align-items:flex-start;">
+      <div class="row-time">${formatDateShort(l.date)}</div>
+      <div style="flex:1">
+        <div class="row-title">${esc(l.subcategoria || l.materia || '')}</div>
+        <div class="row-sub">${formatDuracao(l.duracao)}</div>
+      </div>
+      <button class="del-btn" data-del="estudos" data-id="${l.id}">✕</button>
+    </div>`).join('')}</div>`;
 }
 
 function subTabChipsTreinoHtml(){
@@ -3343,6 +3441,161 @@ const PROJETOS_FUTUROS = [
   { nome:'Prestação de serviço', detalhe:'Tráfego Pago / Marketing', meta:'R$1.000/mês mínimo' },
   { nome:'Consultoria Endurance', detalhe:'Ecossistema Endurance', meta:'R$1.000/mês mínimo' },
 ];
+
+let homeSubTab = 'mercado';
+
+function getAlimentacaoHoje(){
+  const hoje = todayISO();
+  let reg = state.alimentacaoDiaria.find(r=>r.data===hoje);
+  if (!reg){
+    reg = { id: uid(), data: hoje, cafe:'', almoco:'', janta:'' };
+    state.alimentacaoDiaria.push(reg);
+  }
+  return reg;
+}
+
+function mercadoHtml(){
+  const itens = [...state.mercadoLista].sort((a,b)=> (a.comprado?1:0) - (b.comprado?1:0));
+  const pendentes = itens.filter(i=>!i.comprado).length;
+  let html = `<div class="row-sub" style="margin:2px 2px 8px;">${pendentes} ${pendentes===1?'item pendente':'itens pendentes'}</div>`;
+  html += `<div class="card" style="padding:10px 14px;">
+    <div style="display:flex;gap:8px;">
+      <input id="mercadoNovoItem" type="text" placeholder="Ex: Arroz, Ovos, Detergente" maxlength="60"
+        style="flex:1;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 10px;font-size:13.5px;">
+      <button type="button" id="btnMercadoAdd" class="chip" style="padding:9px 16px;">+</button>
+    </div>
+  </div>`;
+  if (itens.length === 0){
+    html += `<div class="empty"><span class="big">Lista vazia</span>Adicione o que precisa comprar.</div>`;
+  } else {
+    html += `<div class="card">${itens.map(i=>`
+      <div class="row">
+        <div class="checkbox ${i.comprado?'checked':''}" data-mercado-toggle="${i.id}" role="checkbox" tabindex="0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#14171d" stroke-width="3"><path d="M5 12l5 5L19 7"/></svg>
+        </div>
+        <div class="row-title ${i.comprado?'done':''}" style="flex:1;">${esc(i.item)}</div>
+        <button class="del-btn" data-del="mercadoLista" data-id="${i.id}">✕</button>
+      </div>`).join('')}</div>`;
+  }
+  return html;
+}
+
+function alimentacaoHtml(){
+  const reg = getAlimentacaoHoje();
+  const refeicoes = [
+    { chave:'cafe', label:'Café da manhã' },
+    { chave:'almoco', label:'Almoço' },
+    { chave:'janta', label:'Janta' },
+  ];
+  return `<div class="card">
+    <div class="section-label" style="margin-top:0;">Plano de hoje</div>
+    ${refeicoes.map(r=>`<div class="field"><label for="alim-${r.chave}">${esc(r.label)}</label>
+      <input id="alim-${r.chave}" data-alim="${r.chave}" type="text" value="${esc(reg[r.chave]||'')}" placeholder="O que vai comer" maxlength="80"
+        style="width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 10px;font-size:13.5px;margin-top:4px;">
+    </div>`).join('')}
+  </div>`;
+}
+
+function casaHtml(){
+  const tarefas = [...state.casaTarefas].sort((a,b)=> (a.feita?1:0) - (b.feita?1:0));
+  const pendentes = tarefas.filter(t=>!t.feita).length;
+  let html = `<div class="row-sub" style="margin:2px 2px 8px;">${pendentes} ${pendentes===1?'tarefa pendente':'tarefas pendentes'}</div>`;
+  html += `<div class="card" style="padding:10px 14px;">
+    <div style="display:flex;gap:8px;">
+      <input id="casaNovaTarefa" type="text" placeholder="Ex: Lavar louça, Passar roupa" maxlength="60"
+        style="flex:1;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 10px;font-size:13.5px;">
+      <button type="button" id="btnCasaAdd" class="chip" style="padding:9px 16px;">+</button>
+    </div>
+  </div>`;
+  if (tarefas.length === 0){
+    html += `<div class="empty"><span class="big">Nada pendente</span>Adicione uma tarefa de casa.</div>`;
+  } else {
+    html += `<div class="card">${tarefas.map(t=>`
+      <div class="row">
+        <div class="checkbox ${t.feita?'checked':''}" data-casa-toggle="${t.id}" role="checkbox" tabindex="0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#14171d" stroke-width="3"><path d="M5 12l5 5L19 7"/></svg>
+        </div>
+        <div class="row-title ${t.feita?'done':''}" style="flex:1;">${esc(t.tarefa)}</div>
+        <button class="del-btn" data-del="casaTarefas" data-id="${t.id}">✕</button>
+      </div>`).join('')}</div>`;
+  }
+  return html;
+}
+
+function renderHome(main){
+  let html = `<div class="chip-row">
+    <button class="chip ${homeSubTab==='mercado'?'sel':''}" data-homesub="mercado">🛒 Mercado</button>
+    <button class="chip ${homeSubTab==='alimentacao'?'sel':''}" data-homesub="alimentacao">🍽️ Alimentação</button>
+    <button class="chip ${homeSubTab==='casa'?'sel':''}" data-homesub="casa">🧹 Casa</button>
+  </div>`;
+
+  if (homeSubTab==='mercado') html += mercadoHtml();
+  else if (homeSubTab==='alimentacao') html += alimentacaoHtml();
+  else html += casaHtml();
+
+  main.innerHTML = html;
+  bindDeletes(main);
+
+  main.querySelectorAll('[data-homesub]').forEach(chip=>{
+    chip.addEventListener('click', ()=>{ homeSubTab = chip.dataset.homesub; render(); });
+  });
+
+  if (homeSubTab==='mercado'){
+    const addItem = async ()=>{
+      const input = document.getElementById('mercadoNovoItem');
+      const val = input.value.trim();
+      if (!val) return;
+      state.mercadoLista.push({ id: uid(), item: val, comprado:false });
+      await persist('mercadoLista');
+      render();
+    };
+    const btnAdd = document.getElementById('btnMercadoAdd');
+    if (btnAdd) btnAdd.addEventListener('click', addItem);
+    const input = document.getElementById('mercadoNovoItem');
+    if (input) input.addEventListener('keydown', e=>{ if (e.key==='Enter') addItem(); });
+    main.querySelectorAll('[data-mercado-toggle]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        const item = state.mercadoLista.find(i=>i.id===el.dataset.mercadoToggle);
+        item.comprado = !item.comprado;
+        await persist('mercadoLista');
+        render();
+      });
+    });
+  }
+
+  if (homeSubTab==='alimentacao'){
+    main.querySelectorAll('[data-alim]').forEach(input=>{
+      input.addEventListener('blur', async ()=>{
+        const reg = getAlimentacaoHoje();
+        reg[input.dataset.alim] = input.value;
+        await persist('alimentacaoDiaria');
+      });
+    });
+  }
+
+  if (homeSubTab==='casa'){
+    const addTarefa = async ()=>{
+      const input = document.getElementById('casaNovaTarefa');
+      const val = input.value.trim();
+      if (!val) return;
+      state.casaTarefas.push({ id: uid(), tarefa: val, feita:false });
+      await persist('casaTarefas');
+      render();
+    };
+    const btnAdd = document.getElementById('btnCasaAdd');
+    if (btnAdd) btnAdd.addEventListener('click', addTarefa);
+    const input = document.getElementById('casaNovaTarefa');
+    if (input) input.addEventListener('keydown', e=>{ if (e.key==='Enter') addTarefa(); });
+    main.querySelectorAll('[data-casa-toggle]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        const t = state.casaTarefas.find(x=>x.id===el.dataset.casaToggle);
+        t.feita = !t.feita;
+        await persist('casaTarefas');
+        render();
+      });
+    });
+  }
+}
 
 function renderFuturo(main){
   main.innerHTML = `
@@ -4251,6 +4504,7 @@ function handleAddClick(){
     else if (financasSubTab2 === 'mensal') { return; }
     else sheet.innerHTML = caixaAvancadoForm();
   }
+  else if (currentTab === 'home' || currentTab === 'futuro'){ return; }
   wireSheet();
   openSheet();
 }
@@ -4267,6 +4521,7 @@ function maisMenuHtml(){
     { tab:'habitos', label:'Hábitos' },
     { tab:'relatorios', label:'Relatórios' },
     { tab:'futuro', label:'Projetos Futuros' },
+    { tab:'home', label:'Home' },
   ];
   return `<h2>Mais</h2>
     <div class="card">${itens.map(i=>`<div class="row" data-goto-tab="${i.tab}" style="cursor:pointer;">
@@ -4371,17 +4626,11 @@ const ESTUDO_CATEGORIAS = {
 };
 
 function estudoForm(){
-  const categorias = Object.keys(ESTUDO_CATEGORIAS);
-  const primeira = categorias[0];
   return `<h2>Registrar estudo</h2>
-    <div class="field"><label for="f-categoria-estudo">Categoria</label>
-      <select id="f-categoria-estudo">${categorias.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')}</select>
-    </div>
-    <div class="field"><label for="f-subcategoria-estudo">Subcategoria</label>
-      <select id="f-subcategoria-estudo">${ESTUDO_CATEGORIAS[primeira].map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('')}</select>
+    <div class="field"><label for="f-categoria-estudo">Tema</label>
+      <select id="f-categoria-estudo">${ESTUDO_TEMAS.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')}</select>
     </div>
     <div class="field"><label for="f-duracao">Duração (minutos)</label><input id="f-duracao" type="number" min="1" max="600" value="60"></div>
-    <div class="field"><label for="f-nota-estudo">O que estudou (opcional)</label><input id="f-nota-estudo" type="text" maxlength="100" placeholder="Ex: Estrutura de anúncio Meta Ads"></div>
     ${sheetActions('estudos')}`;
 }
 function treinoForm(){
@@ -4648,14 +4897,6 @@ function wireSheet(){
     applyDefaults();
   }
 
-  const categoriaEstudoSelect = document.getElementById('f-categoria-estudo');
-  if (categoriaEstudoSelect){
-    categoriaEstudoSelect.addEventListener('change', ()=>{
-      const subSelect = document.getElementById('f-subcategoria-estudo');
-      subSelect.innerHTML = ESTUDO_CATEGORIAS[categoriaEstudoSelect.value].map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
-    });
-  }
-
   const crmStatusToggle = document.getElementById('crmstatus-toggle');
   if (crmStatusToggle){
     const colorFor = { novo:'var(--info)', conversa:'var(--warning)', fechado:'var(--financas)', perdido:'var(--danger)' };
@@ -4840,11 +5081,9 @@ function wireSheet(){
       await persist('cronograma');
     }
     if (tab === 'estudos'){
-      const categoria = document.getElementById('f-categoria-estudo').value;
-      const subcategoria = document.getElementById('f-subcategoria-estudo').value;
+      const tema = document.getElementById('f-categoria-estudo').value;
       const duracao = parseInt(document.getElementById('f-duracao').value) || 0;
-      const nota = document.getElementById('f-nota-estudo').value.trim();
-      state.estudos.push({ id: uid(), date: todayISO(), categoria, subcategoria, materia: subcategoria, duracao, nota });
+      state.estudos.push({ id: uid(), date: todayISO(), categoria: tema, subcategoria: tema, materia: tema, duracao });
       await persist('estudos');
     }
     if (tab === 'treino'){
