@@ -1762,6 +1762,69 @@ function focoDoDiaInputHtml(){
   </div>`;
 }
 
+function saldoDomingoHtml(){
+  const hoje = todayISO();
+  if (new Date(hoje+'T00:00:00').getDay() !== 0) return '';
+  const inicioSemana = startOfWeekISO(hoje);
+  const saldo = state.caixaDiario.filter(l=>l.data>=inicioSemana && l.data<=hoje)
+    .reduce((acc,l)=> acc + (l.tipo==='entrada' ? l.valor : -l.valor), 0);
+  return `<div class="card" style="text-align:center;border:1px solid ${saldo>=0?'var(--financas)':'var(--danger)'};">
+    <div style="font-size:11px;color:var(--text-dim);letter-spacing:.04em;">SALDO DA SEMANA</div>
+    <div class="amount ${saldo>=0?'pos':'neg'}" style="font-size:32px;margin-top:6px;">${formatMoney(saldo)}</div>
+  </div>`;
+}
+
+function insightsHtml(){
+  const hoje = todayISO();
+  const ontem = addDiasISO(hoje, -1);
+  const regHoje = state.tempoDiario.find(r=>r.data===hoje);
+  const regOntem = state.tempoDiario.find(r=>r.data===ontem);
+  const totalHoje = regHoje && regHoje.horas ? Object.values(regHoje.horas).reduce((a,v)=>a+v,0) : 0;
+  const totalOntem = regOntem && regOntem.horas ? Object.values(regOntem.horas).reduce((a,v)=>a+v,0) : 0;
+  const horaAgora = new Date().getHours();
+  const insights = [];
+
+  if (horaAgora >= 12 && totalOntem > 0){
+    const diff = totalHoje - totalOntem;
+    if (diff < -0.25) insights.push({ tipo:'atencao', texto:`Você trabalhou ${formatHoras(Math.abs(diff))} a menos que ontem, até agora.` });
+    else if (diff > 0.25) insights.push({ tipo:'positivo', texto:`Você já trabalhou ${formatHoras(diff)} a mais que ontem nesse horário.` });
+  }
+
+  const horasHoje = {};
+  TEMPO_PROJETOS.forEach(p=> horasHoje[p] = (regHoje && regHoje.horas && regHoje.horas[p]) || 0);
+  const candidatos = TEMPO_PROJETOS
+    .filter(p=> METAS_HORAS_DIARIAS[p] > 0)
+    .map(p=>({ p, pct: horasHoje[p]/METAS_HORAS_DIARIAS[p] }))
+    .sort((a,b)=>a.pct-b.pct);
+  if (candidatos.length>0 && candidatos[0].pct < 0.5 && horaAgora >= 15){
+    insights.push({ tipo:'atencao', texto:`${candidatos[0].p} está ${Math.round((1-candidatos[0].pct)*100)}% abaixo da meta hoje.` });
+  }
+
+  let streakMeta = 0;
+  for (let i=0;i<14;i++){
+    const d = addDiasISO(hoje, -i);
+    const reg = state.tempoDiario.find(r=>r.data===d);
+    const total = reg && reg.horas ? Object.values(reg.horas).reduce((a,v)=>a+v,0) : 0;
+    if (total >= META_HORAS_DIA_TOTAL) streakMeta++;
+    else break;
+  }
+  if (streakMeta >= 2) insights.push({ tipo:'positivo', texto:`${streakMeta} dias seguidos batendo a meta de ${formatHoras(META_HORAS_DIA_TOTAL)}.` });
+
+  const inicioSemana = startOfWeekISO(hoje);
+  const inicioSemanaPassada = addDiasISO(inicioSemana, -7);
+  const estudoSemana = state.estudos.filter(e=>e.date>=inicioSemana && e.date<=hoje).reduce((a,e)=>a+(e.duracao||0),0);
+  const estudoSemanaPassada = state.estudos.filter(e=>e.date>=inicioSemanaPassada && e.date<inicioSemana).reduce((a,e)=>a+(e.duracao||0),0);
+  if (estudoSemanaPassada > 0 && estudoSemana < estudoSemanaPassada * 0.6 && new Date(hoje+'T00:00:00').getDay() >= 3){
+    insights.push({ tipo:'atencao', texto:'Você está estudando bem menos que na semana passada.' });
+  }
+
+  if (insights.length === 0) return '';
+  return `<div class="row-sub" style="margin:14px 2px 6px;">Insights</div>
+    ${insights.slice(0,3).map(i=>`<div class="card" style="padding:12px 14px;margin-bottom:8px;background:${i.tipo==='positivo'?'rgba(34,197,94,0.08)':'rgba(59,130,246,0.08)'};border:1px solid ${i.tipo==='positivo'?'var(--financas)':'var(--info)'};">
+      <div style="font-size:13px;color:${i.tipo==='positivo'?'#86efac':'#93c5fd'};">${i.tipo==='positivo'?'✨':'💡'} ${esc(i.texto)}</div>
+    </div>`).join('')}`;
+}
+
 function hojeResumoHtml(){
   const hoje = todayISO();
   const reg = state.tempoDiario.find(r=>r.data===hoje);
@@ -2062,7 +2125,9 @@ function controleDoDiaHtml(){
 function renderInicio(main){
   let html = `<div class="section-label" style="margin-top:0;">📊 Hoje</div>`;
   html += hojeResumoHtml();
+  html += saldoDomingoHtml();
   html += alertasHtml();
+  html += insightsHtml();
 
   html += `<div class="section-label">🎯 Foco do dia</div>`;
   html += focoDoDiaInputHtml();
