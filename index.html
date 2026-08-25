@@ -843,15 +843,6 @@
       <svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg>
       <span class="tlabel">Controle</span>
     </button>
-    <button class="tab" data-tab="crm" aria-label="CRM">
-      <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.5 3-6 7-6s7 2.5 7 6"/><circle cx="17" cy="8" r="2.5"/><path d="M16.5 14.2c2.7.5 4.5 2.6 4.5 5.8"/></svg>
-      <span class="tlabel">CRM</span>
-      <span class="badge" data-badge="crm" style="display:none;"></span>
-    </button>
-    <button class="tab" data-tab="financas" aria-label="Finanças">
-      <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg>
-      <span class="tlabel">Finanças</span>
-    </button>
     <button class="tab" data-tab="projetos" aria-label="Projetos">
       <svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18"/></svg>
       <span class="tlabel">Projetos</span>
@@ -861,13 +852,21 @@
       <span class="tlabel">Agenda</span>
       <span class="badge" data-badge="agenda" style="display:none;"></span>
     </button>
-    <button class="tab" data-tab="estudos" aria-label="Estudos">
-      <svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5V5.5z"/><path d="M20 18H6.5a2.5 2.5 0 0 0-2.5 2.5"/></svg>
-      <span class="tlabel">Estudos</span>
+    <button class="tab" data-tab="home" aria-label="Home">
+      <svg viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-6h4v6"/></svg>
+      <span class="tlabel">Home</span>
+    </button>
+    <button class="tab" data-tab="financas" aria-label="Finanças">
+      <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg>
+      <span class="tlabel">Finanças</span>
     </button>
     <button class="tab" data-tab="habitos" aria-label="Hábitos">
       <svg viewBox="0 0 24 24"><path d="M6.5 6.5 3 10l11 11 3.5-3.5M14.5 3.5 21 10M9 9l6 6M17.5 6.5l-11 11"/></svg>
       <span class="tlabel">Hábitos</span>
+    </button>
+    <button class="tab" data-tab="estudos" aria-label="Estudos">
+      <svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5V5.5z"/><path d="M20 18H6.5a2.5 2.5 0 0 0-2.5 2.5"/></svg>
+      <span class="tlabel">Estudos</span>
     </button>
     <button class="tab" data-tab="relatorios" aria-label="Relatórios">
       <svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>
@@ -876,10 +875,6 @@
     <button class="tab" data-tab="futuro" aria-label="Futuro">
       <svg viewBox="0 0 24 24"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>
       <span class="tlabel">Futuro</span>
-    </button>
-    <button class="tab" data-tab="home" aria-label="Home">
-      <svg viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-6h4v6"/></svg>
-      <span class="tlabel">Home</span>
     </button>
   </nav>
 
@@ -969,23 +964,38 @@ const DIAS_SEMANA = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Dom
 const SUBTAB_LABELS = { tarefas:'Tarefas', projetos:'Projetos', cronograma:'Cronograma', estudos:'Estudos', tempo:'Tempo' };
 
 let state = { agenda:[], trabalho:[], treino:[], financas:[], projetos:[], cronograma:[], estudos:[], caixinhas:[], bancos:[], trabalhoSessoes:[], habitos:[], habitoLogs:[], caixaDiario:[], tempoDiario:[], revisaoSemanal:[], controleDia:[], missoesConcluidas:[], crmLeads:[], checkDiario:[], mercadoLista:[], casaTarefas:[], alimentacaoDiaria:[] };
+const CAMADAS = {
+  base: { label:'Base Financeira', emoji:'🔴', cor:'#ef4444' },
+  construcao: { label:'Construção', emoji:'🟢', cor:'#22c55e' },
+  testes: { label:'Experimentação', emoji:'🟡', cor:'#eab308' },
+  aprendizado: { label:'Aprendizado', emoji:'⚪', cor:'#94a3b8' },
+};
+const PROJETO_CAMADA = {
+  Shopee:'base', Amazon:'base', T11Sports:'base',
+  'Onak Hub':'construcao',
+  'TikTok Shopping Afiliado':'testes',
+  'Minuto 90':'aprendizado',
+};
+const ONAK_VERTICAIS = ['Ecommerce', 'Treinamento', 'Nutrição'];
+
 const TEMPO_GRUPOS = [
-  { chave:'manha', titulo:'🌅 Manhã', projetos:['Shopee','Marca Própria'] },
-  { chave:'tarde', titulo:'🌇 Tarde', projetos:['Amazon','T11Sports'] },
-  { chave:'noite', titulo:'🌙 Noite (1h)', projetos:['TikTok Shopping Afiliado','Onak Hub'] },
+  { chave:'base', titulo:'🔴 Base Financeira', projetos:['Shopee','Amazon','T11Sports'] },
+  { chave:'construcao', titulo:'🟢 Construção (seg/qua/sex)', projetos:['Onak Hub'] },
+  { chave:'testes', titulo:'🟡 Experimentação (ter/qui)', projetos:['TikTok Shopping Afiliado'] },
+  { chave:'aprendizado', titulo:'⚪ Aprendizado', projetos:['Minuto 90'] },
 ];
 const TEMPO_PROJETOS = TEMPO_GRUPOS.flatMap(g=>g.projetos);
 const TEMPO_CORES = {
-  Shopee:'#f97316', 'Marca Própria':'#f59e0b',
-  Amazon:'#eab308', T11Sports:'#22c55e',
-  'TikTok Shopping Afiliado':'#ec4899', 'Onak Hub':'#3b82f6',
+  Shopee:'#ef4444', Amazon:'#f87171', T11Sports:'#fca5a5',
+  'Onak Hub':'#22c55e', 'TikTok Shopping Afiliado':'#eab308', 'Minuto 90':'#94a3b8',
 };
-const DIAS_TIKTOK = [1,3,5]; // seg, qua, sex -> TikTok Shopping Afiliado
-const DIAS_CASUAL_ONAK = [2,4]; // ter, qui -> Onak Hub
-const METAS_SEMANAIS = { 'TikTok Shopping Afiliado':3, 'Onak Hub':2 };
-const METAS_HORAS_SEMANAIS = { Shopee:24, 'Marca Própria':14, Amazon:24, T11Sports:14, 'TikTok Shopping Afiliado':3, 'Onak Hub':2 };
-const METAS_HORAS_DIARIAS = { Shopee:1.5, 'Marca Própria':1.5, Amazon:1.5, T11Sports:1.5, 'TikTok Shopping Afiliado':1, 'Onak Hub':1 };
-const META_HORAS_DIA_TOTAL = 7;
+const DIAS_ONAK = [1,3,5]; // seg, qua, sex -> foco Onak (Construção)
+const DIAS_TIKTOK = [2,4]; // ter, qui -> foco TikTok (Testes)
+const METAS_SEMANAIS = { 'TikTok Shopping Afiliado':2, 'Onak Hub':3 };
+const METAS_HORAS_SEMANAIS = { Shopee:24, Amazon:24, T11Sports:14, 'Onak Hub':4.5, 'TikTok Shopping Afiliado':2, 'Minuto 90':3 };
+const METAS_HORAS_DIARIAS = { Shopee:1.5, Amazon:1.5, T11Sports:1, 'Onak Hub':1.5, 'TikTok Shopping Afiliado':1, 'Minuto 90':0.5 };
+const META_HORAS_BASE_DIA = 4; // Shopee+Amazon+T11 juntos
+const META_HORAS_DIA_TOTAL = 5.5;
 let currentTab = 'central';
 let trabalhoSubTab = 'painel';
 let controleSubTab = 'mensal';
@@ -1714,12 +1724,11 @@ function itensAplicaveis(dataISO){
   const dow = new Date(dataISO+'T00:00:00').getDay();
   const itens = [
     { chave:'shopee', label:'Shopee' },
-    { chave:'marcapropria', label:'Marca Própria' },
     { chave:'amazon', label:'Amazon' },
     { chave:'t11', label:'T11Sports' },
   ];
+  if (DIAS_ONAK.includes(dow)) itens.push({ chave:'onak', label:'Onak Hub' });
   if (DIAS_TIKTOK.includes(dow)) itens.push({ chave:'tiktok', label:'TikTok Shopping Afiliado' });
-  if (DIAS_CASUAL_ONAK.includes(dow)) itens.push({ chave:'onak', label:'Onak Hub' });
   return itens;
 }
 
@@ -1727,7 +1736,7 @@ function getCheckDiarioHoje(){
   const hoje = todayISO();
   let reg = state.checkDiario.find(r=>r.data===hoje);
   if (!reg){
-    reg = { id: uid(), data: hoje, shopee:false, marcapropria:false, amazon:false, t11:false, tiktok:false, onak:false, tiktokVideoPrincipal:'', tiktokVariacoes:[] };
+    reg = { id: uid(), data: hoje, shopee:false, amazon:false, t11:false, tiktok:false, onak:false, tiktokVideoPrincipal:'', tiktokVariacoes:[] };
     state.checkDiario.push(reg);
   }
   return reg;
@@ -1823,6 +1832,69 @@ function insightsHtml(){
     ${insights.slice(0,3).map(i=>`<div class="card" style="padding:12px 14px;margin-bottom:8px;background:${i.tipo==='positivo'?'rgba(34,197,94,0.08)':'rgba(59,130,246,0.08)'};border:1px solid ${i.tipo==='positivo'?'var(--financas)':'var(--info)'};">
       <div style="font-size:13px;color:${i.tipo==='positivo'?'#86efac':'#93c5fd'};">${i.tipo==='positivo'?'✨':'💡'} ${esc(i.texto)}</div>
     </div>`).join('')}`;
+}
+
+function decidirFocoHoje(){
+  const hoje = todayISO();
+  const dow = new Date(hoje+'T00:00:00').getDay();
+  const reg = state.tempoDiario.find(r=>r.data===hoje);
+  const horasHoje = {};
+  TEMPO_PROJETOS.forEach(p=> horasHoje[p] = (reg && reg.horas && reg.horas[p]) || 0);
+  const baseProjetos = ['Shopee','Amazon','T11Sports'];
+  const baseFaltando = baseProjetos.filter(p=> horasHoje[p] < METAS_HORAS_DIARIAS[p]);
+
+  if (baseFaltando.length > 0){
+    return { projeto: baseFaltando[0], motivo: 'Base financeira ainda não bateu a meta hoje — ela sempre vem primeiro.', camada:'base' };
+  }
+  if (DIAS_ONAK.includes(dow) && horasHoje['Onak Hub'] < METAS_HORAS_DIARIAS['Onak Hub']){
+    return { projeto: 'Onak Hub', motivo: 'Base em dia. Hoje é dia de Construção (Onak).', camada:'construcao' };
+  }
+  if (DIAS_TIKTOK.includes(dow) && horasHoje['TikTok Shopping Afiliado'] < METAS_HORAS_DIARIAS['TikTok Shopping Afiliado']){
+    return { projeto: 'TikTok Shopping Afiliado', motivo: 'Base em dia. Hoje é dia de Experimentação (TikTok).', camada:'testes' };
+  }
+  return { projeto: 'Minuto 90', motivo: 'Base e foco do dia cumpridos. Hora de aprender.', camada:'aprendizado' };
+}
+
+function focoAutomaticoHtml(){
+  const decisao = decidirFocoHoje();
+  const camada = CAMADAS[decisao.camada];
+  return `<div class="card" style="border:1px solid ${camada.cor};background:${camada.cor}14;">
+    <div style="font-size:11px;color:var(--text-dim);letter-spacing:.04em;margin-bottom:6px;">ONDE FOCAR AGORA</div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:20px;">${camada.emoji}</span>
+      <div style="font-size:18px;font-weight:700;">${esc(decisao.projeto)}</div>
+    </div>
+    <div style="font-size:12.5px;color:var(--text-dim);margin-top:6px;">${esc(decisao.motivo)}</div>
+  </div>`;
+}
+
+function statusBaseHtml(){
+  const hoje = todayISO();
+  const reg = state.tempoDiario.find(r=>r.data===hoje);
+  const horasHoje = {};
+  TEMPO_PROJETOS.forEach(p=> horasHoje[p] = (reg && reg.horas && reg.horas[p]) || 0);
+  const baseProjetos = ['Shopee','Amazon','T11Sports'];
+  const totalBase = baseProjetos.reduce((a,p)=>a+horasHoje[p],0);
+  const totalHoje = TEMPO_PROJETOS.reduce((a,p)=>a+horasHoje[p],0);
+  const pctDoDia = totalHoje>0 ? Math.round((totalBase/totalHoje)*100) : 0;
+  const pctMetaBase = Math.round((totalBase/META_HORAS_BASE_DIA)*100);
+
+  let status, cor;
+  if (pctMetaBase >= 100){ status='OK'; cor='var(--financas)'; }
+  else if (pctMetaBase >= 50){ status='RISCO'; cor='var(--warning)'; }
+  else { status='CAINDO'; cor='var(--danger)'; }
+
+  return `<div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <div style="font-size:11px;color:var(--text-dim);letter-spacing:.04em;">🔴 STATUS DA BASE</div>
+      <div style="font-size:20px;font-weight:700;color:${cor};margin-top:4px;">${status}</div>
+      <div style="font-size:11.5px;color:var(--text-dim);margin-top:2px;">${formatHoras(totalBase)} de ${formatHoras(META_HORAS_BASE_DIA)}</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-family:var(--font-mono);font-size:24px;font-weight:700;">${pctDoDia}%</div>
+      <div style="font-size:10.5px;color:var(--text-dim);">do tempo de hoje</div>
+    </div>
+  </div>`;
 }
 
 function hojeResumoHtml(){
@@ -1983,16 +2055,22 @@ function alertasHtml(){
   const horasHoje = {};
   TEMPO_PROJETOS.forEach(p=> horasHoje[p] = (regHoje && regHoje.horas && regHoje.horas[p]) || 0);
 
-  const baseProjetos = ['Shopee','Marca Própria','Amazon','T11Sports'];
+  const baseProjetos = ['Shopee','Amazon','T11Sports'];
   const baseFaltando = baseProjetos.filter(p => horasHoje[p] < METAS_HORAS_DIARIAS[p]);
   if (baseFaltando.length > 0){
-    alertas.push({ nivel:'forte', texto:`Base incompleta hoje: falta bater a meta em ${baseFaltando.join(', ')}.` });
+    alertas.push({ nivel:'forte', texto:`Base financeira abaixo do ideal hoje: falta bater a meta em ${baseFaltando.join(', ')}.` });
   }
   if (DIAS_TIKTOK.includes(dow) && horasHoje['TikTok Shopping Afiliado'] < METAS_HORAS_DIARIAS['TikTok Shopping Afiliado']){
-    alertas.push({ nivel:'medio', texto:'TikTok Shopping Afiliado é hoje e ainda não bateu a meta de 1h.' });
+    alertas.push({ nivel:'medio', texto:'Hoje é dia de TikTok (Experimentação) e ainda não bateu a meta.' });
   }
-  if (DIAS_CASUAL_ONAK.includes(dow) && horasHoje['Onak Hub'] < METAS_HORAS_DIARIAS['Onak Hub']){
-    alertas.push({ nivel:'medio', texto:'Onak Hub é hoje à noite e ainda não bateu a meta de 1h.' });
+  if (DIAS_ONAK.includes(dow) && horasHoje['Onak Hub'] < METAS_HORAS_DIARIAS['Onak Hub']){
+    alertas.push({ nivel:'medio', texto:'Hoje é dia de Onak Hub (Construção) e ainda não bateu a meta.' });
+  }
+
+  const totalBaseHoje = baseProjetos.reduce((a,p)=>a+horasHoje[p],0);
+  const totalTestesHoje = horasHoje['TikTok Shopping Afiliado'] || 0;
+  if (totalTestesHoje > totalBaseHoje && totalTestesHoje > 0){
+    alertas.push({ nivel:'forte', texto:'Tempo em Experimentação (TikTok) já passou o tempo na Base hoje — isso não pode acontecer.' });
   }
 
   const inicioSemana = startOfWeekISO(hoje);
@@ -2003,7 +2081,7 @@ function alertasHtml(){
     alertas.push({ nivel:'medio', texto:`Só ${tiktokSemana}/${METAS_SEMANAIS['TikTok Shopping Afiliado']} dias de TikTok essa semana.` });
   }
   if (onakSemana < METAS_SEMANAIS['Onak Hub'] && dow >= 5){
-    alertas.push({ nivel:'medio', texto:`Só ${onakSemana}/${METAS_SEMANAIS['Onak Hub']} dias de Onak Hub essa semana.` });
+    alertas.push({ nivel:'medio', texto:`Você não trabalhou na Onak em ${METAS_SEMANAIS['Onak Hub']-onakSemana} dos dias programados essa semana.` });
   }
 
   const cincoDiasAtras = addDiasISO(hoje, -5);
@@ -2012,16 +2090,16 @@ function alertasHtml(){
   state.tempoDiario.filter(r=> r.data >= cincoDiasAtras && r.data <= hoje).forEach(r=>{
     TEMPO_PROJETOS.forEach(p=>{ horasRecentes[p] += (r.horas && r.horas[p]) || 0; });
   });
-  const negligenciados = TEMPO_PROJETOS.filter(p=> horasRecentes[p] === 0);
+  const negligenciados = baseProjetos.filter(p=> horasRecentes[p] === 0);
   if (negligenciados.length > 0){
-    alertas.push({ nivel:'medio', texto:`Sem nenhuma hora registrada nos últimos 5 dias: ${negligenciados.join(', ')}.` });
+    alertas.push({ nivel:'forte', texto:`Queda de consistência na base: sem hora registrada em ${negligenciados.join(', ')} nos últimos 5 dias.` });
   }
 
   const diaConsistente = (r)=>{
     const dowR = new Date(r.data+'T00:00:00').getDay();
-    const aplicaveis = ['Shopee','Marca Própria','Amazon','T11Sports'];
+    const aplicaveis = ['Shopee','Amazon','T11Sports'];
+    if (DIAS_ONAK.includes(dowR)) aplicaveis.push('Onak Hub');
     if (DIAS_TIKTOK.includes(dowR)) aplicaveis.push('TikTok Shopping Afiliado');
-    if (DIAS_CASUAL_ONAK.includes(dowR)) aplicaveis.push('Onak Hub');
     return aplicaveis.every(p => ((r.horas && r.horas[p])||0) >= METAS_HORAS_DIARIAS[p]);
   };
   const semanaPassadaInicio = addDiasISO(inicioSemana, -7);
@@ -2062,8 +2140,8 @@ function statusDoDiaHtml(){
   const { feitos, total } = scoreCheckDiario(hoje);
   const label = total===0 ? '' : feitos===total ? 'Dia perfeito 🎉' : (feitos/total)>=0.6 ? 'Médio' : 'Fraco';
 
-  const baseItens = [{chave:'shopee',label:'Shopee'},{chave:'marcapropria',label:'Marca Própria'},{chave:'amazon',label:'Amazon'},{chave:'t11',label:'T11'}];
-  const outrosItens = itensAplicaveis(hoje).filter(i=>!['shopee','marcapropria','amazon','t11'].includes(i.chave));
+  const baseItens = [{chave:'shopee',label:'Shopee'},{chave:'amazon',label:'Amazon'},{chave:'t11',label:'T11'}];
+  const outrosItens = itensAplicaveis(hoje).filter(i=>!['shopee','amazon','t11'].includes(i.chave));
 
   return `<div class="card">
     <div style="text-align:center;margin-bottom:18px;">
@@ -2123,13 +2201,19 @@ function controleDoDiaHtml(){
 }
 
 function renderInicio(main){
-  let html = `<div class="section-label" style="margin-top:0;">📊 Hoje</div>`;
+  let html = `<div class="section-label" style="margin-top:0;">Status da Base</div>`;
+  html += statusBaseHtml();
+
+  html += `<div class="section-label">Onde focar agora</div>`;
+  html += focoAutomaticoHtml();
+
+  html += `<div class="section-label">📊 Hoje</div>`;
   html += hojeResumoHtml();
   html += saldoDomingoHtml();
   html += alertasHtml();
   html += insightsHtml();
 
-  html += `<div class="section-label">🎯 Foco do dia</div>`;
+  html += `<div class="section-label">🎯 Foco do dia (seu)</div>`;
   html += focoDoDiaInputHtml();
 
   html += `<div class="section-label">📋 Check diário</div>`;
@@ -2421,6 +2505,7 @@ function projetosPainelHtml(){
             <div style="font-size:10px;color:var(--text-dim);">total acumulado</div>
           </div>
         </div>
+        ${p==='Onak Hub' ? `<div style="font-size:11px;color:var(--text-dim);margin-top:6px;">${ONAK_VERTICAIS.join(' · ')}</div>` : ''}
         ${tarefasProjeto.length>0 ? `<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px;">
           ${tarefasProjeto.slice(0,4).map(t=>`<div style="font-size:12.5px;color:var(--text-dim);padding:3px 0;">• ${esc(t.title)}</div>`).join('')}
           ${tarefasProjeto.length>4 ? `<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">+${tarefasProjeto.length-4} tarefa(s)</div>` : ''}
@@ -3877,6 +3962,43 @@ function renderDashboard(main){
     ${kpiCardHtml({ icon:'wallet', color: (entradasSemana-gastosSemana)>=0?'var(--current)':'var(--danger)', value: formatMoney(entradasSemana-gastosSemana), label:'Saldo da semana', note: `${formatMoney(entradasSemana)} entradas · ${formatMoney(gastosSemana)} gastos`, noteColor:'var(--text-dim)' })}
   </div>`;
 
+  const totaisPorCamada = { base:0, construcao:0, testes:0, aprendizado:0 };
+  TEMPO_PROJETOS.forEach(p=> totaisPorCamada[PROJETO_CAMADA[p]] += totaisTempo[p]);
+  html += `<div class="card">
+    <div class="section-label" style="margin-top:0;">Tempo por camada · essa semana</div>
+    ${Object.keys(CAMADAS).map(k=>{
+      const pct = totalTempoSemana>0 ? Math.round(totaisPorCamada[k]/totalTempoSemana*100) : 0;
+      return `<div style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+          <span>${CAMADAS[k].emoji} ${esc(CAMADAS[k].label)}</span><span style="color:var(--text-dim);">${formatHoras(totaisPorCamada[k])} · ${pct}%</span>
+        </div>
+        <div style="height:7px;border-radius:4px;background:var(--surface-2);overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${CAMADAS[k].cor};"></div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+
+  const semanaPassadaInicioD = addDiasISO(inicioSemana, -7);
+  const baseProjetosD = ['Shopee','Amazon','T11Sports'];
+  const baseHorasSemana = state.tempoDiario.filter(r=>r.data>=inicioSemana && r.data<=hoje)
+    .reduce((a,r)=> a + baseProjetosD.reduce((x,p)=>x+((r.horas&&r.horas[p])||0),0), 0);
+  const baseHorasSemanaPassada = state.tempoDiario.filter(r=>r.data>=semanaPassadaInicioD && r.data<inicioSemana)
+    .reduce((a,r)=> a + baseProjetosD.reduce((x,p)=>x+((r.horas&&r.horas[p])||0),0), 0);
+  let tendencia, tendCor, tendIcone;
+  if (baseHorasSemanaPassada === 0){ tendencia = baseHorasSemana>0?'Subindo':'Sem dados'; tendCor='var(--text-dim)'; tendIcone='—'; }
+  else if (baseHorasSemana > baseHorasSemanaPassada*1.05){ tendencia='Subindo'; tendCor='var(--financas)'; tendIcone='↑'; }
+  else if (baseHorasSemana < baseHorasSemanaPassada*0.95){ tendencia='Caindo'; tendCor='var(--danger)'; tendIcone='↓'; }
+  else { tendencia='Estável'; tendCor='var(--warning)'; tendIcone='→'; }
+
+  html += `<div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <div class="section-label" style="margin-top:0;">🔴 Tendência da base</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">${formatHoras(baseHorasSemana)} essa semana vs ${formatHoras(baseHorasSemanaPassada)} na passada</div>
+    </div>
+    <div style="font-size:18px;font-weight:700;color:${tendCor};">${tendIcone} ${tendencia}</div>
+  </div>`;
+
   const inicioSemana2 = startOfWeekISO(hoje);
   const regsSemanaCheck = state.checkDiario.filter(r=> r.data >= inicioSemana2 && r.data <= hoje);
   const tiktokFeitos = regsSemanaCheck.filter(r=>r.tiktok).length;
@@ -4580,7 +4702,6 @@ if (fabBtnDesktop) fabBtnDesktop.addEventListener('click', handleAddClick);
 function maisMenuHtml(){
   const itens = [
     { tab:'dashboard', label:'Dashboard' },
-    { tab:'crm', label:'CRM' },
     { tab:'projetos', label:'Projetos' },
     { tab:'estudos', label:'Estudos' },
     { tab:'habitos', label:'Hábitos' },
